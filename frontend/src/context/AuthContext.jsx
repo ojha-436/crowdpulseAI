@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase.js';
 
 const AuthContext = createContext(null);
@@ -37,19 +37,60 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     // Initialize users in localStorage if not exists
     const storedUsers = localStorage.getItem('crowdpulse_users');
+    let currentLocalUsers = DEFAULT_USERS;
     if (!storedUsers) {
       localStorage.setItem('crowdpulse_users', JSON.stringify(DEFAULT_USERS));
       setUsers(DEFAULT_USERS);
     } else {
-      setUsers(JSON.parse(storedUsers));
+      currentLocalUsers = JSON.parse(storedUsers);
+      setUsers(currentLocalUsers);
     }
 
     // Load active session
     const activeSession = localStorage.getItem('crowdpulse_session');
     if (activeSession) {
       setCurrentUser(JSON.parse(activeSession));
+      setLoading(false);
+    } else {
+      // Check if user returned from Google Redirect Sign-In
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result && result.user) {
+            const user = result.user;
+            const email = user.email || 'operator@crowdpulse.ai';
+            const username = email.split('@')[0];
+            const displayName = user.displayName || username;
+            
+            const googleUser = {
+              username: username.toLowerCase(),
+              email: email.toLowerCase(),
+              password: 'google-oauth-managed',
+              displayName: displayName,
+              role: 'Stadium Director', // default super admin clearance
+              avatar: 'google',
+              clearance: 'Level-5 (Super-Admin)',
+              commandsCount: 0,
+              joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            };
+
+            // Add to users list if not already present
+            const userExists = currentLocalUsers.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
+            if (!userExists) {
+              const updatedUsers = [...currentLocalUsers, googleUser];
+              localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
+              setUsers(updatedUsers);
+            }
+
+            localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
+            setCurrentUser(googleUser);
+          }
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.error("Firebase Redirect Auth Error:", error);
+          setLoading(false);
+        });
     }
-    setLoading(false);
   }, []);
 
   const login = (emailOrUsername, password) => {
@@ -114,36 +155,9 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const email = user.email || 'operator@crowdpulse.ai';
-      const username = email.split('@')[0];
-      const displayName = user.displayName || username;
-      
-      const googleUser = {
-        username: username.toLowerCase(),
-        email: email.toLowerCase(),
-        password: 'google-oauth-managed',
-        displayName: displayName,
-        role: 'Stadium Director', // default super admin clearance
-        avatar: 'google',
-        clearance: 'Level-5 (Super-Admin)',
-        commandsCount: 0,
-        joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      };
-
-      // Add to users list if not already present
-      const userExists = users.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
-      if (!userExists) {
-        const updatedUsers = [...users, googleUser];
-        localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
-        setUsers(updatedUsers);
-      }
-
-      localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
-      setCurrentUser(googleUser);
-      return googleUser;
+      // Use redirect instead of popup!
+      // This is immune to 3rd party cookie blocking and browser popup blockers.
+      await signInWithRedirect(auth, googleProvider);
     } catch (error) {
       console.error("Firebase Google Auth Error:", error);
       throw error;
