@@ -1,20 +1,23 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAnalytics } from 'firebase/analytics';
 
 // --- Firebase Web App Configuration ---
-// Note: You can replace these placeholders with your actual values from:
-// Firebase Console > Project Settings > General > Your Apps > Web SDK Configuration
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyD-YOUR-API-KEY-HERE",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "crowdpulseai-497205.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "crowdpulseai-497205",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "crowdpulseai-497205.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "760399447766",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:760399447766:web:1234567890abcdef"
+  apiKey: "AIzaSyCC_sAXnoVICulVd-INPfEQpoJXf6vQVSQ",
+  authDomain: "crowdpulseai-497205.firebaseapp.com",
+  projectId: "crowdpulseai-497205",
+  storageBucket: "crowdpulseai-497205.firebasestorage.app",
+  messagingSenderId: "760399447766",
+  appId: "1:760399447766:web:d260366621203d2c67eb77",
+  measurementId: "G-L92WLQMN1J"
 };
 
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firebase Analytics
+export const analytics = getAnalytics(app);
 
 // Initialize Firebase Authentication
 export const auth = getAuth(app);
