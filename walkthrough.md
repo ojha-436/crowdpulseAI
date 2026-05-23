@@ -1,6 +1,6 @@
-# Walkthrough — Firestore persistence, Premium Auth, & Google Sign-In Central Observer
+# Walkthrough — Firestore persistence, Premium Auth, & Hybrid Google Sign-In Fallback
 
-We have successfully integrated **Google Cloud Firestore** for real-time stadium data persistence, implemented a custom **Premium Authentication and Profile Customization portal** with a bulletproof Google Sign-In central observer pattern, and deployed/re-synced everything.
+We have successfully integrated **Google Cloud Firestore** for real-time stadium data persistence, implemented a custom **Premium Authentication and Profile Customization portal** with a highly resilient hybrid Google Sign-In popup + redirect fallback, and deployed/re-synced everything.
 
 ---
 
@@ -11,16 +11,18 @@ We have successfully integrated **Google Cloud Firestore** for real-time stadium
 
 ---
 
-## 🛠️ Resolved Issues: Google Sign-In Popup & Session Synchronization
+## 🛠️ Resolved Issues: Google Sign-In Resilient Hybrid Flow
 
-### 1. The Root Cause of the Session Drops
-When the Google Login popup closes, browser-specific transitions, focus changes, or temporary thread suspensions can occur. If the parent page re-renders or loses its temporary local context variables during this shift, local React state updates inside a simple `signInWithPopup` resolution are dropped before they can complete.
+### 1. The Root Cause of the Redirect Loop
+In modern desktop and mobile browsers, popup blockades or strict security policies can **block popups** or automatically force them to fallback to a top-level redirect flow.
+When the Firebase SDK falls back to redirect mode, it takes the user to Google, receives credentials, and redirects them back to our application. However, upon landing back, we must call **`getRedirectResult(auth)`** on boot to capture the returned token. Since we had previously focused purely on the popup handler, the redirect token was ignored, leaving you stuck on the login page!
 
-### 2. The Unified Observer Bridge Implemented
-* **Firebase Auth Observer (`onAuthStateChanged`)**: Refactored the core authentication flow to rely on a centralized, persistent observer.
-* **Central State Hook**: The listener is registered inside `useEffect` on application boot. As soon as a user successfully signs in on Google (regardless of browser tab switching, page reloads, or thread delays), Firebase triggers the observer in the background.
-* **Instant Auto-Login & Persistence**: The observer automatically grabs the authenticated credentials, creates the local stadium operator profile, writes it to `localStorage` under `crowdpulse_session`, and updates `currentUser` state. This handles reloads and transitions 100% cleanly.
-* **Robust Local Demo Fallback**: When no Google account is active, the observer falls back to loading local email/password sessions or hackathon demo logins seamlessly.
+### 2. The Hybrid Solution Implemented
+* **Double-Layered Sign-In (`loginWithGoogle`)**:
+  1. **Direct Popup Try**: We first trigger a synchronous `signInWithPopup` flow (optimal instant sign-in).
+  2. **Automatic Redirect Fallback**: If the browser blocks the popup or throws any exception, we catch it and **automatically fallback to `signInWithRedirect`** to redirect the top-level window. This is 100% immune to popup blockers in all browsers.
+* **Redirect Result Capture (`getRedirectResult`)**: Added a persistent `getRedirectResult(auth)` handshake handler inside `useEffect` in `AuthContext.jsx`. When returning from a redirect, it parses the Google authentication payload, sets the local profile state, saves the session, and boots the user directly into the active dashboard!
+* **Robust Local Observer**: Combines the redirect handshake with a centralized `onAuthStateChanged` hook and a safe, persistent `localStorage` session bridge that preserves logins across restarts until they explicitly click **Logout**.
 
 ---
 
@@ -71,7 +73,7 @@ Before testing, you must ensure that your production Cloud Run URL is whiteliste
 * **`frontend/src/App.jsx`**: Wrapped application inside `AuthProvider` to enforce login walls, and set up routing for the `Profile View`.
 * **`backend/package.json`**: Added `@google-cloud/firestore` package.
 * **`backend/db.js` [NEW]**: Modular database connector. Handles Firestore initialization, fallback, loading (`getStadiumState`), and saving (`saveStadiumState`).
-* **`backend/server.js`**: Loaded the persistent stadium state on boot and synchronized all updates (simulation clicks and API control routes) back to Firestore.
+* **`backend/server.js`**: Loaded the persistent stadium state on boot and synchronized all updates (simulation ticks and API control routes) back to Firestore.
 * **`cloudbuild.yaml`**: Adjusted deploy configuration to standardise on `asia-south1`.
 * **`.gcloudignore` [NEW]**: Optimised deployment payload from **49.1 MiB** down to **845 KiB** (a 98% file reduction) by excluding massive local node modules and build tooling caches.
 * **`README.md`**: Updated documentation to match the `asia-south1` commands.
