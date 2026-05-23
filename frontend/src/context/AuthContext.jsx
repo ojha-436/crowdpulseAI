@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase.js';
 
 const AuthContext = createContext(null);
@@ -46,12 +46,61 @@ export function AuthProvider({ children }) {
       setUsers(currentLocalUsers);
     }
 
-    // Load active session
-    const activeSession = localStorage.getItem('crowdpulse_session');
-    if (activeSession) {
-      setCurrentUser(JSON.parse(activeSession));
-    }
-    setLoading(false);
+    // Set up the Firebase Auth observer to automatically handle Google Sign-In and persistence
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // Successful Google login detected!
+        const email = firebaseUser.email || 'operator@crowdpulse.ai';
+        const username = email.split('@')[0];
+        const displayName = firebaseUser.displayName || username;
+
+        const googleUser = {
+          username: username.toLowerCase(),
+          email: email.toLowerCase(),
+          password: 'google-oauth-managed',
+          displayName: displayName,
+          role: 'Stadium Director', // default super admin
+          avatar: 'google',
+          clearance: 'Level-5 (Super-Admin)',
+          commandsCount: 0,
+          joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        };
+
+        // Fetch latest users
+        const latestStoredUsers = localStorage.getItem('crowdpulse_users');
+        let localUsers = latestStoredUsers ? JSON.parse(latestStoredUsers) : DEFAULT_USERS;
+
+        // Save Google operator profile to local users database if not exists
+        const userExists = localUsers.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
+        if (!userExists) {
+          const updatedUsers = [...localUsers, googleUser];
+          localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
+          setUsers(updatedUsers);
+        }
+
+        // Establish the active login session
+        localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
+        setCurrentUser(googleUser);
+      } else {
+        // No Firebase user session. Look for local email/password or hackathon demo account session
+        const activeSession = localStorage.getItem('crowdpulse_session');
+        if (activeSession) {
+          const parsedSession = JSON.parse(activeSession);
+          // If the local session is a Google account, but Firebase is signed out, terminate session
+          if (parsedSession.password === 'google-oauth-managed') {
+            localStorage.removeItem('crowdpulse_session');
+            setCurrentUser(null);
+          } else {
+            setCurrentUser(parsedSession);
+          }
+        } else {
+          setCurrentUser(null);
+        }
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const login = (emailOrUsername, password) => {
@@ -116,40 +165,8 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const email = user.email || 'operator@crowdpulse.ai';
-      const username = email.split('@')[0];
-      const displayName = user.displayName || username;
-      
-      const googleUser = {
-        username: username.toLowerCase(),
-        email: email.toLowerCase(),
-        password: 'google-oauth-managed',
-        displayName: displayName,
-        role: 'Stadium Director', // default super admin clearance
-        avatar: 'google',
-        clearance: 'Level-5 (Super-Admin)',
-        commandsCount: 0,
-        joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      };
-
-      // Fetch the latest users list from localStorage to avoid stale state
-      const storedUsers = localStorage.getItem('crowdpulse_users');
-      let currentLocalUsers = storedUsers ? JSON.parse(storedUsers) : DEFAULT_USERS;
-
-      // Add to users list if not already present
-      const userExists = currentLocalUsers.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
-      if (!userExists) {
-        const updatedUsers = [...currentLocalUsers, googleUser];
-        localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
-        setUsers(updatedUsers);
-      }
-
-      localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
-      setCurrentUser(googleUser);
-      return googleUser;
+      // Simply trigger standard Firebase popup. The observer hook catches and synchronizes state!
+      await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Firebase Google Auth Error:", error);
       throw error;
@@ -177,7 +194,12 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Firebase Google Sign-Out Error:", error);
+    }
     localStorage.removeItem('crowdpulse_session');
     setCurrentUser(null);
   };
