@@ -42,64 +42,75 @@ app.use("/api/", limiter);
 app.use(express.static(path.join(__dirname, "public")));
 
 // --- In-Memory Data Store (Simulates Firestore for MVP) ---
-const stadiumState = {
-  name: "Narendra Modi Stadium, Ahmedabad",
-  capacity: 132000,
-  currentOccupancy: 0,
-  matchStatus: "pre-match",
-  weatherCondition: "clear",
-  temperature: 34,
-  humidity: 62,
-  gates: {},
-  zones: {},
-  incidents: [],
-  alerts: [],
-  crowdHistory: [],
-  routingDecisions: [],
+const getInitialState = () => {
+  const state = {
+    name: "Narendra Modi Stadium, Ahmedabad",
+    capacity: 132000,
+    currentOccupancy: 0,
+    matchStatus: "pre-match",
+    weatherCondition: "clear",
+    temperature: 34,
+    humidity: 62,
+    gates: {},
+    zones: {},
+    incidents: [],
+    alerts: [],
+    crowdHistory: [],
+    routingDecisions: [],
+  };
+
+  const gateNames = [
+    "North-A", "North-B", "North-C",
+    "East-A", "East-B", "East-C",
+    "South-A", "South-B", "South-C",
+    "West-A", "West-B", "West-C",
+  ];
+
+  gateNames.forEach((name) => {
+    state.gates[name] = {
+      id: name,
+      status: "open",
+      currentFlow: 0,
+      maxCapacity: 3200,
+      currentLoad: 0,
+      queueLength: 0,
+      avgProcessingTime: 8,
+      direction: name.split("-")[0],
+      scanners: 6,
+      activeScanners: 6,
+    };
+  });
+
+  const zoneNames = ["North Stand", "East Pavilion", "South Stand", "West Pavilion", "VIP Lounge", "Corporate Box", "General-Upper", "General-Lower"];
+  zoneNames.forEach((name) => {
+    const cap = name.includes("VIP") ? 5000 : name.includes("Corporate") ? 3000 : 18000;
+    state.zones[name] = {
+      id: name,
+      capacity: cap,
+      currentOccupancy: 0,
+      density: 0,
+      riskLevel: "low",
+      temperature: 34 + Math.random() * 3,
+      exitRoutes: 4,
+      facilities: { water: "operational", medical: "standby", restrooms: "operational" },
+    };
+  });
+
+  return state;
 };
 
-// Initialize 12 gates
-const gateNames = [
-  "North-A", "North-B", "North-C",
-  "East-A", "East-B", "East-C",
-  "South-A", "South-B", "South-C",
-  "West-A", "West-B", "West-C",
-];
-
-gateNames.forEach((name, i) => {
-  stadiumState.gates[name] = {
-    id: name,
-    status: "open",
-    currentFlow: 0,
-    maxCapacity: 3200,
-    currentLoad: 0,
-    queueLength: 0,
-    avgProcessingTime: 8,
-    direction: name.split("-")[0],
-    scanners: 6,
-    activeScanners: 6,
-  };
-});
-
-// Initialize 8 zones
-const zoneNames = ["North Stand", "East Pavilion", "South Stand", "West Pavilion", "VIP Lounge", "Corporate Box", "General-Upper", "General-Lower"];
-zoneNames.forEach((name, i) => {
-  const cap = name.includes("VIP") ? 5000 : name.includes("Corporate") ? 3000 : 18000;
-  stadiumState.zones[name] = {
-    id: name,
-    capacity: cap,
-    currentOccupancy: 0,
-    density: 0,
-    riskLevel: "low",
-    temperature: 34 + Math.random() * 3,
-    exitRoutes: 4,
-    facilities: { water: "operational", medical: "standby", restrooms: "operational" },
-  };
-});
+const stadiumState = getInitialState();
 
 // --- Load state from Firestore on Startup ---
 const dbState = await getStadiumState(stadiumState);
 Object.assign(stadiumState, dbState);
+
+// --- Expose reset function ---
+export function resetStadiumState() {
+  const freshState = getInitialState();
+  Object.assign(stadiumState, freshState);
+  saveStadiumState(stadiumState);
+}
 
 // --- Simulation Engine ---
 let simulationInterval = null;
@@ -458,6 +469,12 @@ app.get("/health", (req, res) => {
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", service: "crowdpulse-ai", timestamp: new Date().toISOString() });
+});
+
+// Reset simulation state
+app.post("/api/stadium/reset", (req, res) => {
+  resetStadiumState();
+  res.json({ success: true, message: "Simulation state reset successfully." });
 });
 
 // Get full stadium state
