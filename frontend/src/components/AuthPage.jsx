@@ -51,7 +51,13 @@ export default function AuthPage() {
       await loginWithGoogle();
     } catch (err) {
       console.error("GOOGLE AUTH ERROR:", err);
-      setError(err.toString() || 'Google Sign-In failed. Please try again.');
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Google sign-in window was closed. Please keep the window open to finish authentication.');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('This domain is not authorized in your Firebase Console. Please add crowdpulse-ai-760399447766.asia-south1.run.app under Authentication > Settings > Authorized Domains.');
+      } else {
+        setError(err.message || err.toString() || 'Google Sign-In failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
