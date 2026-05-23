@@ -50,7 +50,8 @@ export default function AuthPage() {
     try {
       await loginWithGoogle();
     } catch (err) {
-      setError(err.message || 'Google Sign-In failed. Please try again.');
+      console.error("GOOGLE AUTH ERROR:", err);
+      setError(err.toString() || 'Google Sign-In failed. Please try again.');
     } finally {
       setLoading(false);
     }
