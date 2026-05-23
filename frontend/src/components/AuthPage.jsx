@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Activity, Mail, Lock, User, Shield, AlertCircle } from 'lucide-react';
 
 export default function AuthPage() {
-  const { login, register, loginWithGoogle } = useAuth();
+  const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   
   // Form fields
@@ -44,24 +44,6 @@ export default function AuthPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      await loginWithGoogle();
-    } catch (err) {
-      console.error("GOOGLE AUTH ERROR:", err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('Google sign-in window was closed. Please keep the window open to finish authentication.');
-      } else if (err.code === 'auth/unauthorized-domain') {
-        setError('This domain is not authorized in your Firebase Console. Please add crowdpulse-ai-760399447766.asia-south1.run.app under Authentication > Settings > Authorized Domains.');
-      } else {
-        setError(err.message || err.toString() || 'Google Sign-In failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleQuickLogin = (demoEmail) => {
     setEmail(demoEmail);
@@ -106,40 +88,7 @@ export default function AuthPage() {
             </div>
           )}
 
-          {/* Social Auth */}
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full py-2.5 px-4 rounded-xl bg-white text-midnight-900 font-semibold text-sm flex items-center justify-center gap-2.5 hover:bg-gray-100 active:scale-[0.98] transition-all duration-200 shadow-md disabled:opacity-50 disabled:pointer-events-none"
-          >
-            {/* Google Vector Icon */}
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M12 5.04c1.62 0 3.08.56 4.22 1.64l3.15-3.15C17.45 1.74 14.93 1 12 1 7.35 1 3.39 3.65 1.45 7.5l3.87 3C6.27 7.74 8.89 5.04 12 5.04z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.29 1.48-1.14 2.73-2.4 3.58l3.76 2.91c2.2-2.03 3.67-5.01 3.67-8.64z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.32 14.5c-.24-.74-.38-1.53-.38-2.5s.14-1.76.38-2.5L1.45 6.5C.53 8.32 0 10.4 0 12.5s.53 4.18 1.45 6l3.87-3z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.76-2.91c-1.1.74-2.51 1.18-4.2 1.18-3.11 0-5.73-2.7-6.68-5.46l-3.87 3C3.39 20.35 7.35 23 12 23z"
-              />
-            </svg>
-            Continue with Google
-          </button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-white/[0.06]" />
-            <span className="text-[10px] text-gray-500 font-mono tracking-widest uppercase">Or Credentials</span>
-            <div className="flex-1 h-px bg-white/[0.06]" />
-          </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -238,31 +187,7 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* Demo Fast-Track Logins */}
-        {isLogin && (
-          <div className="w-full mt-6 bg-midnight-800/20 backdrop-blur-md border border-white/[0.04] p-4 rounded-2xl">
-            <h3 className="text-[10px] font-mono text-gray-500 tracking-widest uppercase mb-3 flex items-center gap-1.5">
-              <Shield size={11} className="text-pulse-400" />
-              Bengaluru Hackathon Fast-Track Access
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleQuickLogin('iamabhiraj8825@gmail.com')}
-                className="p-2.5 rounded-xl bg-midnight-700/25 border border-white/[0.04] hover:border-cyan-400/30 text-left hover:bg-cyan-950/10 transition-all group"
-              >
-                <p className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors">Abhiraj Singh</p>
-                <p className="text-[9px] font-mono text-gray-500 group-hover:text-gray-400">Director Account</p>
-              </button>
-              <button
-                onClick={() => handleQuickLogin('security@crowdpulse.ai')}
-                className="p-2.5 rounded-xl bg-midnight-700/25 border border-white/[0.04] hover:border-pulse-400/30 text-left hover:bg-pulse-950/10 transition-all group"
-              >
-                <p className="text-xs font-bold text-white group-hover:text-pulse-400 transition-colors">Vikram Malhotra</p>
-                <p className="text-[9px] font-mono text-gray-500 group-hover:text-gray-400">Security Chief</p>
-              </button>
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

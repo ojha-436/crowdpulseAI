@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase.js';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from '../firebase.js';
 
 const AuthContext = createContext(null);
 
@@ -46,47 +46,7 @@ export function AuthProvider({ children }) {
       setUsers(currentLocalUsers);
     }
 
-    // Capture returned authentication payload if user returned from Google Redirect
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result && result.user) {
-          const user = result.user;
-          const email = user.email || 'operator@crowdpulse.ai';
-          const username = email.split('@')[0];
-          const displayName = user.displayName || username;
-
-          const googleUser = {
-            username: username.toLowerCase(),
-            email: email.toLowerCase(),
-            password: 'google-oauth-managed',
-            displayName: displayName,
-            role: 'Stadium Director', // default super admin
-            avatar: 'google',
-            clearance: 'Level-5 (Super-Admin)',
-            commandsCount: 0,
-            joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          };
-
-          // Fetch latest users
-          const latestStoredUsers = localStorage.getItem('crowdpulse_users');
-          let localUsers = latestStoredUsers ? JSON.parse(latestStoredUsers) : DEFAULT_USERS;
-
-          // Save Google operator profile to local users database if not exists
-          const userExists = localUsers.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
-          if (!userExists) {
-            const updatedUsers = [...localUsers, googleUser];
-            localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
-            setUsers(updatedUsers);
-          }
-
-          // Establish the active login session
-          localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
-          setCurrentUser(googleUser);
-        }
-      })
-      .catch((error) => {
-        console.error("Firebase Redirect Result Handshake Error:", error);
-      });
+    // Remove getRedirectResult since we are strictly using signInWithPopup to prevent redirect loops.
 
     // Set up the Firebase Auth observer to automatically handle Google Sign-In and persistence
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -198,22 +158,6 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const loginWithGoogle = async () => {
-    try {
-      // First, attempt standard direct popup login (optimal popup experience)
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.warn("Popup blocked or failed, falling back automatically to Redirect mode...", error);
-      // Fallback: If popups are blocked or throw an error, trigger top-level Redirect flow
-      // This is 100% immune to popup blockers in modern mobile and desktop browsers!
-      try {
-        await signInWithRedirect(auth, googleProvider);
-      } catch (redirectError) {
-        console.error("Firebase Redirect Fallback Error:", redirectError);
-        throw redirectError;
-      }
-    }
-  };
 
   const updateProfile = (updatedDetails) => {
     return new Promise((resolve) => {
@@ -253,7 +197,6 @@ export function AuthProvider({ children }) {
         loading,
         login,
         register,
-        loginWithGoogle,
         updateProfile,
         logout,
       }}
