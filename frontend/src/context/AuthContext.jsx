@@ -82,17 +82,10 @@ export function AuthProvider({ children }) {
         localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
         setCurrentUser(googleUser);
       } else {
-        // No Firebase user session. Look for local email/password or hackathon demo account session
+        // No Firebase user session. Look for any active local session (Google, email, or demo account)
         const activeSession = localStorage.getItem('crowdpulse_session');
         if (activeSession) {
-          const parsedSession = JSON.parse(activeSession);
-          // If the local session is a Google account, but Firebase is signed out, terminate session
-          if (parsedSession.password === 'google-oauth-managed') {
-            localStorage.removeItem('crowdpulse_session');
-            setCurrentUser(null);
-          } else {
-            setCurrentUser(parsedSession);
-          }
+          setCurrentUser(JSON.parse(activeSession));
         } else {
           setCurrentUser(null);
         }
