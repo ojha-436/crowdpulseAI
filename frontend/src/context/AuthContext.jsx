@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../firebase.js';
 
 const AuthContext = createContext(null);
 
@@ -110,35 +112,42 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const loginWithGoogle = () => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Beautiful simulated Google Sign-In user
-        const googleUser = {
-          username: 'google_user',
-          email: 'iamabhiraj8825@gmail.com',
-          password: 'google-oauth-managed',
-          displayName: 'Abhiraj Singh (Google)',
-          role: 'Stadium Director',
-          avatar: 'google',
-          clearance: 'Level-5 (Super-Admin)',
-          commandsCount: 205,
-          joinedDate: 'May 2026',
-        };
+  const loginWithGoogle = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      const email = user.email || 'operator@crowdpulse.ai';
+      const username = email.split('@')[0];
+      const displayName = user.displayName || username;
+      
+      const googleUser = {
+        username: username.toLowerCase(),
+        email: email.toLowerCase(),
+        password: 'google-oauth-managed',
+        displayName: displayName,
+        role: 'Stadium Director', // default super admin clearance
+        avatar: 'google',
+        clearance: 'Level-5 (Super-Admin)',
+        commandsCount: 0,
+        joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      };
 
-        // Add to users list if not already present
-        const userExists = users.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
-        if (!userExists) {
-          const updatedUsers = [...users, googleUser];
-          localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
-          setUsers(updatedUsers);
-        }
+      // Add to users list if not already present
+      const userExists = users.some((u) => u.email.toLowerCase() === googleUser.email.toLowerCase());
+      if (!userExists) {
+        const updatedUsers = [...users, googleUser];
+        localStorage.setItem('crowdpulse_users', JSON.stringify(updatedUsers));
+        setUsers(updatedUsers);
+      }
 
-        localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
-        setCurrentUser(googleUser);
-        resolve(googleUser);
-      }, 1000);
-    });
+      localStorage.setItem('crowdpulse_session', JSON.stringify(googleUser));
+      setCurrentUser(googleUser);
+      return googleUser;
+    } catch (error) {
+      console.error("Firebase Google Auth Error:", error);
+      throw error;
+    }
   };
 
   const updateProfile = (updatedDetails) => {
