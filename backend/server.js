@@ -209,6 +209,14 @@ const PORT = process.env.PORT || 8080;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
 /**
+ * The Gemini model used for agent queries. Overridable via the GEMINI_MODEL
+ * env var so the model can be upgraded without a code change when Google
+ * retires older versions. Must be a model that supports function calling.
+ * @type {string}
+ */
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+/**
  * The Google GenAI client instance.
  * Set to null if the Gemini API key is not configured.
  * @type {import('@google/genai').GoogleGenAI|null}
@@ -1300,7 +1308,7 @@ Be decisive, data-driven, and proactive. When you detect risks, recommend specif
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: GEMINI_MODEL,
       contents: [{ role: "user", parts: [{ text: message }] }],
       config: {
         systemInstruction: systemPrompt,
@@ -1344,7 +1352,7 @@ Be decisive, data-driven, and proactive. When you detect risks, recommend specif
       // 2. Model's initial response (containing the function calls)
       // 3. The actual function response outputs
       const followUp = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: GEMINI_MODEL,
         contents: [
           { role: "user", parts: [{ text: message }] },
           { role: "model", parts },
