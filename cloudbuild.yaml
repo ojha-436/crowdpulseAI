@@ -1,26 +1,45 @@
+# Cloud Build pipeline: build the container (injecting the public Firebase web
+# config as build args), push it, and deploy to Cloud Run.
+#
+# The GCP project is referenced via the built-in $PROJECT_ID substitution so no
+# project identifier is hardcoded in this file. The Firebase values are passed
+# in as _VITE_FIREBASE_* substitutions at submit time (they are public client
+# identifiers, kept out of the repo). Secrets such as GEMINI_API_KEY and
+# JWT_SECRET are managed directly on the Cloud Run service and preserved across
+# deploys via --update-env-vars (which only touches the vars it lists).
 steps:
-  # Build the container
+  # Build the container image with the Firebase web config baked in.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/crowdpulse-ai:$BUILD_ID'
       - '-t'
-      - 'gcr.io/promptwar-501405/crowdpulse-ai:latest'
+      - 'gcr.io/$PROJECT_ID/crowdpulse-ai:latest'
+      - '--build-arg'
+      - 'VITE_FIREBASE_API_KEY=${_VITE_FIREBASE_API_KEY}'
+      - '--build-arg'
+      - 'VITE_FIREBASE_AUTH_DOMAIN=${_VITE_FIREBASE_AUTH_DOMAIN}'
+      - '--build-arg'
+      - 'VITE_FIREBASE_PROJECT_ID=${_VITE_FIREBASE_PROJECT_ID}'
+      - '--build-arg'
+      - 'VITE_FIREBASE_STORAGE_BUCKET=${_VITE_FIREBASE_STORAGE_BUCKET}'
+      - '--build-arg'
+      - 'VITE_FIREBASE_MESSAGING_SENDER_ID=${_VITE_FIREBASE_MESSAGING_SENDER_ID}'
+      - '--build-arg'
+      - 'VITE_FIREBASE_APP_ID=${_VITE_FIREBASE_APP_ID}'
+      - '--build-arg'
+      - 'VITE_FIREBASE_MEASUREMENT_ID=${_VITE_FIREBASE_MEASUREMENT_ID}'
       - '.'
 
-  # Push to Container Registry
+  # Push both tags to Container Registry.
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
-
+    args: ['push', 'gcr.io/$PROJECT_ID/crowdpulse-ai:$BUILD_ID']
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/promptwar-501405/crowdpulse-ai:latest'
+    args: ['push', 'gcr.io/$PROJECT_ID/crowdpulse-ai:latest']
 
-  # Deploy to Cloud Run
+  # Deploy to Cloud Run. --update-env-vars only sets GOOGLE_CLOUD_PROJECT and
+  # leaves all other environment variables (GEMINI_API_KEY, JWT_SECRET) intact.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -28,7 +47,7 @@ steps:
       - 'deploy'
       - 'crowdpulse-ai'
       - '--image'
-      - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/crowdpulse-ai:$BUILD_ID'
       - '--region'
       - 'asia-south1'
       - '--platform'
@@ -38,12 +57,22 @@ steps:
       - '512Mi'
       - '--cpu'
       - '1'
-      - '--set-env-vars'
-      - 'GEMINI_API_KEY=${_GEMINI_API_KEY},GOOGLE_CLOUD_PROJECT=promptwar-501405'
+      - '--update-env-vars'
+      - 'GOOGLE_CLOUD_PROJECT=$PROJECT_ID'
 
+# Firebase web config substitutions (public client identifiers). Provide real
+# values at submit time, e.g.:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_VITE_FIREBASE_API_KEY=...,_VITE_FIREBASE_PROJECT_ID=...,...
 substitutions:
-  _GEMINI_API_KEY: ''
+  _VITE_FIREBASE_API_KEY: ''
+  _VITE_FIREBASE_AUTH_DOMAIN: ''
+  _VITE_FIREBASE_PROJECT_ID: ''
+  _VITE_FIREBASE_STORAGE_BUCKET: ''
+  _VITE_FIREBASE_MESSAGING_SENDER_ID: ''
+  _VITE_FIREBASE_APP_ID: ''
+  _VITE_FIREBASE_MEASUREMENT_ID: ''
 
 images:
-  - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
-  - 'gcr.io/promptwar-501405/crowdpulse-ai:latest'
+  - 'gcr.io/$PROJECT_ID/crowdpulse-ai:$BUILD_ID'
+  - 'gcr.io/$PROJECT_ID/crowdpulse-ai:latest'

@@ -18,15 +18,16 @@ let useFirestore = false;
  */
 let localMemoryState = null;
 
-// Resolve the target GCP project from the environment, falling back to the
-// deployment default. On Cloud Run the client also picks up credentials
-// automatically from the runtime service account.
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "promptwar-501405";
+// Resolve the target GCP project from the environment. When unset (e.g. on
+// Cloud Run), the Firestore client auto-detects both the project and its
+// credentials from the runtime service account / metadata server. No project
+// identifier is hardcoded here.
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || undefined;
 
 try {
-  db = new Firestore({ projectId: PROJECT_ID });
+  db = PROJECT_ID ? new Firestore({ projectId: PROJECT_ID }) : new Firestore();
   useFirestore = true;
-  console.log(`🔥 Firestore successfully initialized for project ${PROJECT_ID}.`);
+  console.log(`🔥 Firestore initialized${PROJECT_ID ? ` for project ${PROJECT_ID}` : " (project auto-detected)"}.`);
 } catch (error) {
   console.warn(
     "⚠️ Firestore client initialization failed. Falling back to In-Memory mode.",

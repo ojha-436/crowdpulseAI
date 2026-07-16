@@ -103,21 +103,18 @@ cd ../backend && npm start
 ### Option B: GCP Cloud Run (Manual)
 
 ```bash
-# Set project
-gcloud config set project crowdpulseai-497205
+# Set your own project id
+export GCP_PROJECT_ID=your_gcp_project_id
+gcloud config set project "$GCP_PROJECT_ID"
 
-# Build & push
-gcloud builds submit --tag gcr.io/crowdpulseai-497205/crowdpulse-ai
+# Build & push + deploy (Firebase web config passed as build-arg substitutions).
+# See cloudbuild.yaml for the full list of _VITE_FIREBASE_* substitutions.
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_VITE_FIREBASE_API_KEY=...,_VITE_FIREBASE_PROJECT_ID=...
 
-# Deploy
-gcloud run deploy crowdpulse-ai \
-  --image gcr.io/crowdpulseai-497205/crowdpulse-ai \
-  --platform managed \
-  --region asia-south1 \
-  --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY=$GEMINI_API_KEY \
-  --memory 512Mi \
-  --cpu 1
+# Secrets are set once on the Cloud Run service (never committed):
+gcloud run services update crowdpulse-ai --region asia-south1 \
+  --update-env-vars GEMINI_API_KEY=your_gemini_key,JWT_SECRET=your_random_secret
 ```
 
 ### Option C: Cloud Build (CI/CD)
