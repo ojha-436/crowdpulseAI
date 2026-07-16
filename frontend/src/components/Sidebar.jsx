@@ -1,20 +1,20 @@
-import React from 'react';
-import { LayoutDashboard, DoorOpen, Map, AlertTriangle, Bot, Activity } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+import React from "react";
+import { LayoutDashboard, DoorOpen, Map, AlertTriangle, Bot, Activity } from "lucide-react";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const navItems = [
-  { id: 'dashboard', icon: LayoutDashboard, label: 'Command Center' },
-  { id: 'gates', icon: DoorOpen, label: 'Gate Control' },
-  { id: 'zones', icon: Map, label: 'Zone Monitor' },
-  { id: 'incidents', icon: AlertTriangle, label: 'Incidents' },
-  { id: 'ai', icon: Bot, label: 'AI Agent' },
+  { id: "dashboard", icon: LayoutDashboard, label: "Command Center" },
+  { id: "gates", icon: DoorOpen, label: "Gate Control" },
+  { id: "zones", icon: Map, label: "Zone Monitor" },
+  { id: "incidents", icon: AlertTriangle, label: "Incidents" },
+  { id: "ai", icon: Bot, label: "AI Agent" },
 ];
 
 const avatarEmojis = {
-  director: '👔',
-  security: '👮',
-  ops: '📊',
-  google: '🌐',
+  director: "👔",
+  security: "👮",
+  ops: "📊",
+  google: "🌐",
 };
 
 export default function Sidebar({ activeView, setActiveView }) {
@@ -29,7 +29,9 @@ export default function Sidebar({ activeView, setActiveView }) {
         </div>
         <div className="hidden lg:block">
           <h1 className="text-sm font-bold tracking-wide text-white">CrowdPulse</h1>
-          <p className="text-[10px] text-pulse-400 font-mono tracking-widest uppercase">AI Command</p>
+          <p className="text-[10px] text-pulse-400 font-mono tracking-widest uppercase">
+            AI Command
+          </p>
         </div>
       </div>
 
@@ -43,12 +45,16 @@ export default function Sidebar({ activeView, setActiveView }) {
               key={item.id}
               onClick={() => setActiveView(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
-                ${active
-                  ? 'bg-pulse-500/10 text-pulse-400 shadow-[inset_0_0_0_1px_rgba(56,242,176,0.15)]'
-                  : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                ${
+                  active
+                    ? "bg-pulse-500/10 text-pulse-400 shadow-[inset_0_0_0_1px_rgba(56,242,176,0.15)]"
+                    : "text-gray-400 hover:text-white hover:bg-white/[0.04]"
                 }`}
             >
-              <Icon size={18} className={active ? 'text-pulse-400' : 'text-gray-500 group-hover:text-gray-300'} />
+              <Icon
+                size={18}
+                className={active ? "text-pulse-400" : "text-gray-400 group-hover:text-gray-300"}
+              />
               <span className="hidden lg:block truncate">{item.label}</span>
               {active && (
                 <div className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-pulse-400 animate-pulse-glow" />
@@ -61,18 +67,18 @@ export default function Sidebar({ activeView, setActiveView }) {
       {/* User profile block */}
       {currentUser && (
         <button
-          onClick={() => setActiveView('profile')}
+          onClick={() => setActiveView("profile")}
           className={`p-3 border-t border-white/[0.04] text-left hover:bg-white/[0.02] transition-colors w-full flex items-center gap-2.5 group shrink-0
-            ${activeView === 'profile' ? 'bg-pulse-500/5' : ''}`}
+            ${activeView === "profile" ? "bg-pulse-500/5" : ""}`}
         >
           <div className="w-8 h-8 rounded-lg bg-midnight-600 border border-white/[0.06] flex items-center justify-center text-lg shrink-0">
-            {avatarEmojis[currentUser.avatar] || '👤'}
+            {avatarEmojis[currentUser.avatar] || "👤"}
           </div>
           <div className="hidden lg:block min-w-0 flex-1">
             <p className="text-xs font-bold text-white truncate leading-tight group-hover:text-pulse-400 transition-colors">
               {currentUser.displayName}
             </p>
-            <p className="text-[9px] font-mono text-gray-500 truncate leading-none mt-0.5">
+            <p className="text-[9px] font-mono text-gray-400 truncate leading-none mt-0.5">
               {currentUser.role}
             </p>
           </div>
@@ -83,7 +89,9 @@ export default function Sidebar({ activeView, setActiveView }) {
       <div className="p-3 border-t border-white/[0.04] shrink-0">
         <div className="hidden lg:flex items-center gap-2 px-2">
           <div className="w-1.5 h-1.5 rounded-full bg-pulse-400 animate-pulse-glow" />
-          <span className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">LIVE • 3s refresh</span>
+          <span className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">
+            LIVE • 3s refresh
+          </span>
         </div>
       </div>
     </aside>

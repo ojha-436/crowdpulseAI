@@ -9,7 +9,7 @@
 }
 
 body {
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   background: #0a0e1a;
   color: #e2e8f0;
   overflow-x: hidden;
@@ -34,7 +34,9 @@ body {
     @apply bg-midnight-800/60 backdrop-blur-xl border border-white/[0.06] rounded-2xl;
   }
   .glow-border {
-    box-shadow: inset 0 0 0 1px rgba(56, 242, 176, 0.1), 0 0 20px rgba(56, 242, 176, 0.05);
+    box-shadow:
+      inset 0 0 0 1px rgba(56, 242, 176, 0.1),
+      0 0 20px rgba(56, 242, 176, 0.05);
   }
   .metric-value {
     @apply text-3xl font-bold tracking-tight font-mono;

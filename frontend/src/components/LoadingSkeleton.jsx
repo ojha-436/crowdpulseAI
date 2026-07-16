@@ -1,9 +1,7 @@
-import React from 'react';
+import React from "react";
 
-function Skeleton({ className = '' }) {
-  return (
-    <div className={`animate-pulse rounded-xl bg-white/[0.04] ${className}`} />
-  );
+function Skeleton({ className = "" }) {
+  return <div className={`animate-pulse rounded-xl bg-white/[0.04] ${className}`} />;
 }
 
 export default function LoadingSkeleton() {

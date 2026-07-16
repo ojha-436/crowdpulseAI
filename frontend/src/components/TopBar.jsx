@@ -1,6 +1,15 @@
-import React, { useState } from 'react';
-import { Cloud, CloudRain, CloudLightning, Sun, Thermometer, Droplets, Bot, Radio } from 'lucide-react';
-import { updateMatchStatus } from '../hooks/useStadiumData.js';
+import React, { useState } from "react";
+import {
+  Cloud,
+  CloudRain,
+  CloudLightning,
+  Sun,
+  Thermometer,
+  Droplets,
+  Bot,
+  Radio,
+} from "lucide-react";
+import { updateMatchStatus } from "../hooks/useStadiumData.js";
 
 const weatherIcons = {
   clear: Sun,
@@ -11,11 +20,11 @@ const weatherIcons = {
 };
 
 const statusColors = {
-  'pre-match': 'bg-cyan-400/15 text-cyan-400 border-cyan-400/20',
-  ongoing: 'bg-pulse-400/15 text-pulse-400 border-pulse-400/20',
-  break: 'bg-warn-400/15 text-warn-400 border-warn-400/20',
-  'post-match': 'bg-gray-400/15 text-gray-400 border-gray-400/20',
-  emergency: 'bg-alert-400/15 text-alert-400 border-alert-400/20',
+  "pre-match": "bg-cyan-400/15 text-cyan-400 border-cyan-400/20",
+  ongoing: "bg-pulse-400/15 text-pulse-400 border-pulse-400/20",
+  break: "bg-warn-400/15 text-warn-400 border-warn-400/20",
+  "post-match": "bg-gray-400/15 text-gray-400 border-gray-400/20",
+  emergency: "bg-alert-400/15 text-alert-400 border-alert-400/20",
 };
 
 export default function TopBar({ state, analysis, onOpenAI }) {
@@ -34,9 +43,7 @@ export default function TopBar({ state, analysis, onOpenAI }) {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Radio size={14} className="text-pulse-400 animate-pulse-glow" />
-          <span className="text-xs font-mono text-gray-400 hidden sm:block">
-            {state.name}
-          </span>
+          <span className="text-xs font-mono text-gray-400 hidden sm:block">{state.name}</span>
         </div>
 
         {/* Match Status */}
@@ -46,17 +53,17 @@ export default function TopBar({ state, analysis, onOpenAI }) {
             className={`status-badge border cursor-pointer ${statusColors[state.matchStatus]}`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            {state.matchStatus.replace('-', ' ').toUpperCase()}
+            {state.matchStatus.replace("-", " ").toUpperCase()}
           </button>
           {showStatusMenu && (
             <div className="absolute top-full left-0 mt-2 z-50 bg-midnight-700 border border-white/10 rounded-xl p-1.5 shadow-2xl min-w-[160px] animate-fade-in">
-              {['pre-match', 'ongoing', 'break', 'post-match', 'emergency'].map((s) => (
+              {["pre-match", "ongoing", "break", "post-match", "emergency"].map((s) => (
                 <button
                   key={s}
                   onClick={() => handleStatusChange(s)}
                   className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors capitalize"
                 >
-                  {s.replace('-', ' ')}
+                  {s.replace("-", " ")}
                 </button>
               ))}
             </div>
@@ -69,7 +76,7 @@ export default function TopBar({ state, analysis, onOpenAI }) {
         <div className="hidden md:flex items-center gap-3 text-xs text-gray-400">
           <div className="flex items-center gap-1.5">
             <WeatherIcon size={14} />
-            <span className="capitalize">{state.weatherCondition?.replace('_', ' ')}</span>
+            <span className="capitalize">{state.weatherCondition?.replace("_", " ")}</span>
           </div>
           <div className="flex items-center gap-1">
             <Thermometer size={12} />

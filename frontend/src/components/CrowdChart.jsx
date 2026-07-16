@@ -1,6 +1,15 @@
-import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { TrendingUp } from 'lucide-react';
+import React from "react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
+import { TrendingUp } from "lucide-react";
 
 export default function CrowdChart({ history, capacity }) {
   if (!history || history.length === 0) return null;
@@ -16,7 +25,9 @@ export default function CrowdChart({ history, capacity }) {
       const d = payload[0].payload;
       return (
         <div className="bg-midnight-700/95 backdrop-blur-xl border border-white/10 rounded-xl px-3 py-2 shadow-2xl">
-          <p className="text-xs font-bold text-white">{parseInt(d.occupancy).toLocaleString()} people</p>
+          <p className="text-xs font-bold text-white">
+            {parseInt(d.occupancy).toLocaleString()} people
+          </p>
           <p className="text-[10px] text-gray-400">{d.pct}% capacity</p>
         </div>
       );
@@ -31,11 +42,9 @@ export default function CrowdChart({ history, capacity }) {
           <TrendingUp size={16} className="text-pulse-400" />
           <h3 className="text-sm font-semibold text-white">Live Occupancy Trend</h3>
         </div>
-        <div className="flex items-center gap-3 text-[10px] font-mono text-gray-500">
+        <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400">
           <span>Capacity: {capacity.toLocaleString()}</span>
-          <span className="text-pulse-400">
-            Current: {data[data.length - 1]?.pct}%
-          </span>
+          <span className="text-pulse-400">Current: {data[data.length - 1]?.pct}%</span>
         </div>
       </div>
 
@@ -52,7 +61,7 @@ export default function CrowdChart({ history, capacity }) {
             <XAxis dataKey="tick" hide />
             <YAxis
               domain={[0, capacity]}
-              tick={{ fill: '#4a5568', fontSize: 10 }}
+              tick={{ fill: "#4a5568", fontSize: 10 }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
@@ -63,7 +72,7 @@ export default function CrowdChart({ history, capacity }) {
               stroke="#ff4757"
               strokeDasharray="4 4"
               strokeOpacity={0.4}
-              label={{ value: '85%', fill: '#ff4757', fontSize: 9, position: 'right' }}
+              label={{ value: "85%", fill: "#ff4757", fontSize: 9, position: "right" }}
             />
             <Area
               type="monotone"

@@ -1,31 +1,55 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, X, Sparkles, Loader2, Wrench } from 'lucide-react';
-import { sendAgentQuery } from '../hooks/useStadiumData.js';
+import React, { useState, useRef, useEffect } from "react";
+import { Bot, Send, X, Sparkles, Loader2, Wrench } from "lucide-react";
+import { sendAgentQuery } from "../hooks/useStadiumData.js";
 
 const QUICK_ACTIONS = [
-  { label: 'Full Status Report', query: 'Give me a comprehensive status report of all gates, zones, and active incidents right now.' },
-  { label: 'High Risk Zones', query: 'Identify all zones with high or critical density levels and recommend crowd redistribution actions.' },
-  { label: 'Gate Optimization', query: 'Analyze all gate throughput and queue lengths. Which gates need rerouting or should be closed?' },
-  { label: 'Emergency Readiness', query: 'Assess our emergency readiness. Are there any emerging patterns that could lead to a crowd safety incident?' },
-  { label: 'Weather Impact', query: 'What is the current weather status and how should it affect our operational decisions?' },
-  { label: 'Ticket Routing', query: 'Suggest optimal gate assignments for the next batch of 500 VIP ticket holders arriving now.' },
+  {
+    label: "Full Status Report",
+    query:
+      "Give me a comprehensive status report of all gates, zones, and active incidents right now.",
+  },
+  {
+    label: "High Risk Zones",
+    query:
+      "Identify all zones with high or critical density levels and recommend crowd redistribution actions.",
+  },
+  {
+    label: "Gate Optimization",
+    query:
+      "Analyze all gate throughput and queue lengths. Which gates need rerouting or should be closed?",
+  },
+  {
+    label: "Emergency Readiness",
+    query:
+      "Assess our emergency readiness. Are there any emerging patterns that could lead to a crowd safety incident?",
+  },
+  {
+    label: "Weather Impact",
+    query: "What is the current weather status and how should it affect our operational decisions?",
+  },
+  {
+    label: "Ticket Routing",
+    query:
+      "Suggest optimal gate assignments for the next batch of 500 VIP ticket holders arriving now.",
+  },
 ];
 
 export default function AICommandPanel({ onClose, overlay, embedded }) {
   const [messages, setMessages] = useState([
     {
-      role: 'assistant',
-      content: '**CrowdPulse AI Command Center active.** I have real-time access to all stadium systems — gates, zones, crowd sensors, weather, and incident feeds. I can analyze conditions, reroute crowds, trigger emergency protocols, and optimize operations.\n\nWhat would you like me to do?',
+      role: "assistant",
+      content:
+        "**CrowdPulse AI Command Center active.** I have real-time access to all stadium systems — gates, zones, crowd sensors, weather, and incident feeds. I can analyze conditions, reroute crowds, trigger emergency protocols, and optimize operations.\n\nWhat would you like me to do?",
       tools: [],
     },
   ]);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
@@ -36,8 +60,8 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
     const msg = query || input.trim();
     if (!msg || loading) return;
 
-    setMessages((prev) => [...prev, { role: 'user', content: msg }]);
-    setInput('');
+    setMessages((prev) => [...prev, { role: "user", content: msg }]);
+    setInput("");
     setLoading(true);
 
     try {
@@ -45,15 +69,15 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
       setMessages((prev) => [
         ...prev,
         {
-          role: 'assistant',
-          content: result.response || result.fallback || 'No response received.',
+          role: "assistant",
+          content: result.response || result.fallback || "No response received.",
           tools: result.toolsUsed || [],
         },
       ]);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: 'Connection error. Please try again.', tools: [] },
+        { role: "assistant", content: "Connection error. Please try again.", tools: [] },
       ]);
     } finally {
       setLoading(false);
@@ -61,8 +85,8 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
   };
 
   const containerClass = overlay
-    ? 'fixed right-0 top-0 bottom-0 w-full sm:w-[480px] z-50 bg-midnight-800/95 backdrop-blur-2xl border-l border-white/[0.06] shadow-2xl animate-slide-up flex flex-col'
-    : 'glass-card flex flex-col h-[calc(100vh-180px)] min-h-[500px]';
+    ? "fixed right-0 top-0 bottom-0 w-full sm:w-[480px] z-50 bg-midnight-800/95 backdrop-blur-2xl border-l border-white/[0.06] shadow-2xl animate-slide-up flex flex-col"
+    : "glass-card flex flex-col h-[calc(100vh-180px)] min-h-[500px]";
 
   return (
     <>
@@ -78,11 +102,13 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">AI Command Agent</h3>
-              <p className="text-[10px] text-pulse-400 font-mono">Gemini 2.0 Flash • Agentic Mode</p>
+              <p className="text-[10px] text-pulse-400 font-mono">
+                Gemini 2.0 Flash • Agentic Mode
+              </p>
             </div>
           </div>
           {overlay && (
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
+            <button onClick={onClose} aria-label="Close AI Command Panel" className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
               <X size={16} />
             </button>
           )}
@@ -109,18 +135,18 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex gap-3 animate-fade-in ${msg.role === 'user' ? 'justify-end' : ''}`}
+              className={`flex gap-3 animate-fade-in ${msg.role === "user" ? "justify-end" : ""}`}
             >
-              {msg.role === 'assistant' && (
+              {msg.role === "assistant" && (
                 <div className="w-7 h-7 rounded-lg bg-pulse-400/10 flex items-center justify-center shrink-0 mt-0.5">
                   <Sparkles size={12} className="text-pulse-400" />
                 </div>
               )}
               <div
                 className={`max-w-[85%] ${
-                  msg.role === 'user'
-                    ? 'bg-cyan-400/10 border border-cyan-400/15 rounded-2xl rounded-tr-md px-4 py-3'
-                    : 'flex-1'
+                  msg.role === "user"
+                    ? "bg-cyan-400/10 border border-cyan-400/15 rounded-2xl rounded-tr-md px-4 py-3"
+                    : "flex-1"
                 }`}
               >
                 {msg.tools && msg.tools.length > 0 && (
@@ -136,9 +162,11 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
                     ))}
                   </div>
                 )}
-                <div className={`text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === 'user' ? 'text-cyan-100' : 'text-gray-300'
-                }`}>
+                <div
+                  className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                    msg.role === "user" ? "text-cyan-100" : "text-gray-300"
+                  }`}
+                >
                   {formatMessage(msg.content)}
                 </div>
               </div>
@@ -150,11 +178,20 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
               <div className="w-7 h-7 rounded-lg bg-pulse-400/10 flex items-center justify-center shrink-0">
                 <Loader2 size={12} className="text-pulse-400 animate-spin" />
               </div>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
                 <span className="inline-flex gap-1">
-                  <span className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <span
+                    className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "0ms" }}
+                  />
+                  <span
+                    className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  />
+                  <span
+                    className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  />
                 </span>
                 Analyzing stadium systems...
               </div>
@@ -172,7 +209,7 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder="Command the stadium AI..."
               className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
               disabled={loading}
@@ -180,6 +217,7 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
             <button
               onClick={() => handleSend()}
               disabled={!input.trim() || loading}
+              aria-label="Send query"
               className="p-2 rounded-lg bg-pulse-400/10 text-pulse-400 hover:bg-pulse-400/20 transition-colors disabled:opacity-30"
             >
               <Send size={14} />
@@ -192,24 +230,36 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
 }
 
 function formatMessage(text) {
-  if (!text) return '';
+  if (!text) return "";
   // Basic markdown-ish formatting
-  return text.split('\n').map((line, i) => {
-    if (line.startsWith('**') && line.endsWith('**')) {
-      return <p key={i} className="font-bold text-white mb-1">{line.replace(/\*\*/g, '')}</p>;
+  return text.split("\n").map((line, i) => {
+    if (line.startsWith("**") && line.endsWith("**")) {
+      return (
+        <p key={i} className="font-bold text-white mb-1">
+          {line.replace(/\*\*/g, "")}
+        </p>
+      );
     }
-    if (line.startsWith('- ') || line.startsWith('• ')) {
-      return <p key={i} className="ml-3 before:content-['›'] before:mr-2 before:text-pulse-400">{line.slice(2)}</p>;
+    if (line.startsWith("- ") || line.startsWith("• ")) {
+      return (
+        <p key={i} className="ml-3 before:content-['›'] before:mr-2 before:text-pulse-400">
+          {line.slice(2)}
+        </p>
+      );
     }
-    if (line.trim() === '') return <br key={i} />;
+    if (line.trim() === "") return <br key={i} />;
     // Handle inline bold
     const parts = line.split(/(\*\*[^*]+\*\*)/g);
     return (
       <p key={i} className="mb-0.5">
         {parts.map((part, j) =>
-          part.startsWith('**') && part.endsWith('**')
-            ? <strong key={j} className="text-white font-semibold">{part.slice(2, -2)}</strong>
-            : part
+          part.startsWith("**") && part.endsWith("**") ? (
+            <strong key={j} className="text-white font-semibold">
+              {part.slice(2, -2)}
+            </strong>
+          ) : (
+            part
+          )
         )}
       </p>
     );

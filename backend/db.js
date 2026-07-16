@@ -10,12 +10,15 @@ try {
   // Try to initialize Firestore with the active project crowdpulseai-497205
   // It automatically picks up credentials when running on Cloud Run!
   db = new Firestore({
-    projectId: process.env.GOOGLE_CLOUD_PROJECT || "crowdpulseai-497205",
+    projectId: process.env.GOOGLE_CLOUD_PROJECT || "promptwar-501405",
   });
   useFirestore = true;
   console.log("🔥 Firestore successfully initialized for project crowdpulseai-497205.");
 } catch (error) {
-  console.warn("⚠️ Firestore client initialization failed. Falling back to In-Memory mode.", error.message);
+  console.warn(
+    "⚠️ Firestore client initialization failed. Falling back to In-Memory mode.",
+    error.message
+  );
   useFirestore = false;
 }
 
@@ -40,21 +43,24 @@ export async function getStadiumState(defaultState) {
   try {
     const docRef = db.doc(DOC_PATH);
     const doc = await docRef.get();
-    
+
     if (!doc.exists) {
       console.log(`📝 Document ${DOC_PATH} does not exist. Initializing with default state...`);
       await docRef.set(localMemoryState);
       return localMemoryState;
     }
-    
+
     const dbState = doc.data();
-    
+
     // Ensure all critical root fields exist (compatibility layer)
     const mergedState = { ...localMemoryState, ...dbState };
     localMemoryState = mergedState;
     return mergedState;
   } catch (error) {
-    console.warn("⚠️ Error reading stadium state from Firestore. Falling back to local memory store:", error.message);
+    console.warn(
+      "⚠️ Error reading stadium state from Firestore. Falling back to local memory store:",
+      error.message
+    );
     return localMemoryState;
   }
 }

@@ -1,18 +1,22 @@
+# Stage 1: Build the frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Serve with the backend
 FROM node:20-slim
-
 WORKDIR /app
-
-# Copy package files first for layer caching
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
-
-# Copy backend source + pre-built frontend in public/
 COPY backend/ ./
+# Copy compiled frontend assets to backend public directory
+COPY --from=frontend-builder /app/frontend/dist/ ./public/
 
 EXPOSE 8080
-
 ENV PORT=8080
 ENV NODE_ENV=production
 
-# Antigravity / Cloud Run inject GEMINI_API_KEY via env at runtime
 CMD ["node", "server.js"]

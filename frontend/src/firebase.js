@@ -1,6 +1,6 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getAnalytics } from 'firebase/analytics';
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAnalytics } from "firebase/analytics";
 
 // --- Firebase Web App Configuration ---
 const firebaseConfig = {
@@ -10,7 +10,7 @@ const firebaseConfig = {
   storageBucket: "crowdpulseai-497205.firebasestorage.app",
   messagingSenderId: "760399447766",
   appId: "1:760399447766:web:d260366621203d2c67eb77",
-  measurementId: "G-L92WLQMN1J"
+  measurementId: "G-L92WLQMN1J",
 };
 
 // Initialize Firebase App
@@ -27,7 +27,7 @@ export const googleProvider = new GoogleAuthProvider();
 
 // Custom configurations for Google Sign-In
 googleProvider.setCustomParameters({
-  prompt: 'select_account' // Forces the account chooser to appear every time
+  prompt: "select_account", // Forces the account chooser to appear every time
 });
 
 export default app;

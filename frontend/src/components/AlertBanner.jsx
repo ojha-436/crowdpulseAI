@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import React, { useState } from "react";
+import { AlertTriangle, X } from "lucide-react";
 
 export default function AlertBanner({ alerts }) {
   const [dismissed, setDismissed] = useState(new Set());
 
   if (!alerts) return null;
-  const active = alerts.filter(
-    (a) => a.priority === 'critical' && !dismissed.has(a.id)
-  );
+  const active = alerts.filter((a) => a.severity === "critical" && !dismissed.has(a.id));
   if (active.length === 0) return null;
 
   const alert = active[0];
@@ -18,6 +16,7 @@ export default function AlertBanner({ alerts }) {
       <p className="text-xs text-alert-300 flex-1 font-medium">{alert.message}</p>
       <button
         onClick={() => setDismissed((s) => new Set([...s, alert.id]))}
+        aria-label="Dismiss alert"
         className="p-1 rounded hover:bg-white/5 text-alert-400/60 hover:text-alert-400 transition-colors shrink-0"
       >
         <X size={14} />

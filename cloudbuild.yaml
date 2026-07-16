@@ -4,21 +4,21 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:$COMMIT_SHA'
+      - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
       - '-t'
-      - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:latest'
+      - 'gcr.io/promptwar-501405/crowdpulse-ai:latest'
       - '.'
 
   # Push to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:$COMMIT_SHA'
+      - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
 
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:latest'
+      - 'gcr.io/promptwar-501405/crowdpulse-ai:latest'
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -28,7 +28,7 @@ steps:
       - 'deploy'
       - 'crowdpulse-ai'
       - '--image'
-      - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:$COMMIT_SHA'
+      - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
       - '--region'
       - 'asia-south1'
       - '--platform'
@@ -39,11 +39,11 @@ steps:
       - '--cpu'
       - '1'
       - '--set-env-vars'
-      - 'GEMINI_API_KEY=${_GEMINI_API_KEY}'
+      - 'GEMINI_API_KEY=${_GEMINI_API_KEY},GOOGLE_CLOUD_PROJECT=promptwar-501405'
 
 substitutions:
   _GEMINI_API_KEY: ''
 
 images:
-  - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:$COMMIT_SHA'
-  - 'gcr.io/crowdpulseai-497205/crowdpulse-ai:latest'
+  - 'gcr.io/promptwar-501405/crowdpulse-ai:$COMMIT_SHA'
+  - 'gcr.io/promptwar-501405/crowdpulse-ai:latest'

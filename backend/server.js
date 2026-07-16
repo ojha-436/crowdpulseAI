@@ -7,9 +7,50 @@ import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
 import { getStadiumState, saveStadiumState } from "./db.js";
 
 dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET || "crowdpulse-super-secret-key-123456";
+
+export function signToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", JWT_SECRET)
+    .update(`${header}.${body}`)
+    .digest("base64url");
+  return `${header}.${body}.${signature}`;
+}
+
+export function verifyToken(token) {
+  try {
+    const [header, body, signature] = token.split(".");
+    const expectedSignature = crypto
+      .createHmac("sha256", JWT_SECRET)
+      .update(`${header}.${body}`)
+      .digest("base64url");
+    if (signature !== expectedSignature) return null;
+    return JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+  } catch (e) {
+    return null;
+  }
+}
+
+export function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized: Missing token" });
+  }
+  const token = authHeader.split(" ")[1];
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ error: "Unauthorized: Invalid token" });
+  }
+  req.user = decoded;
+  next();
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,10 +101,18 @@ const getInitialState = () => {
   };
 
   const gateNames = [
-    "North-A", "North-B", "North-C",
-    "East-A", "East-B", "East-C",
-    "South-A", "South-B", "South-C",
-    "West-A", "West-B", "West-C",
+    "North-A",
+    "North-B",
+    "North-C",
+    "East-A",
+    "East-B",
+    "East-C",
+    "South-A",
+    "South-B",
+    "South-C",
+    "West-A",
+    "West-B",
+    "West-C",
   ];
 
   gateNames.forEach((name) => {
@@ -81,7 +130,16 @@ const getInitialState = () => {
     };
   });
 
-  const zoneNames = ["North Stand", "East Pavilion", "South Stand", "West Pavilion", "VIP Lounge", "Corporate Box", "General-Upper", "General-Lower"];
+  const zoneNames = [
+    "North Stand",
+    "East Pavilion",
+    "South Stand",
+    "West Pavilion",
+    "VIP Lounge",
+    "Corporate Box",
+    "General-Upper",
+    "General-Lower",
+  ];
   zoneNames.forEach((name) => {
     const cap = name.includes("VIP") ? 5000 : name.includes("Corporate") ? 3000 : 18000;
     state.zones[name] = {
@@ -101,9 +159,19 @@ const getInitialState = () => {
 
 const stadiumState = getInitialState();
 
+function addAlert(alert) {
+  stadiumState.alerts.unshift(alert);
+  if (stadiumState.alerts.length > 50) {
+    stadiumState.alerts = stadiumState.alerts.slice(0, 50);
+  }
+}
+
 // --- Load state from Firestore on Startup ---
 const dbState = await getStadiumState(stadiumState);
 Object.assign(stadiumState, dbState);
+if (stadiumState.alerts.length > 50) {
+  stadiumState.alerts = stadiumState.alerts.slice(0, 50);
+}
 
 // --- Expose reset function ---
 export function resetStadiumState() {
@@ -113,7 +181,6 @@ export function resetStadiumState() {
 }
 
 // --- Simulation Engine ---
-let simulationInterval = null;
 let tickCount = 0;
 
 function simulateTick() {
@@ -122,10 +189,15 @@ function simulateTick() {
 
   // Simulate crowd flow based on match status
   const flowMultiplier =
-    matchStatus === "pre-match" ? 1.2 :
-    matchStatus === "ongoing" ? 0.1 :
-    matchStatus === "break" ? 0.4 :
-    matchStatus === "post-match" ? -1.5 : 0;
+    matchStatus === "pre-match"
+      ? 1.2
+      : matchStatus === "ongoing"
+        ? 0.1
+        : matchStatus === "break"
+          ? 0.4
+          : matchStatus === "post-match"
+            ? -1.5
+            : 0;
 
   let totalOccupancy = 0;
 
@@ -134,7 +206,10 @@ function simulateTick() {
       const baseFlow = Math.floor(Math.random() * 80 + 40);
       gate.currentFlow = Math.max(0, Math.floor(baseFlow * Math.abs(flowMultiplier)));
       gate.queueLength = Math.max(0, gate.queueLength + Math.floor(Math.random() * 20 - 8));
-      gate.currentLoad = Math.min(gate.maxCapacity, gate.currentLoad + (flowMultiplier > 0 ? gate.currentFlow : -gate.currentFlow));
+      gate.currentLoad = Math.min(
+        gate.maxCapacity,
+        gate.currentLoad + (flowMultiplier > 0 ? gate.currentFlow : -gate.currentFlow)
+      );
       gate.currentLoad = Math.max(0, gate.currentLoad);
       gate.avgProcessingTime = 5 + Math.random() * 10;
     } else {
@@ -150,7 +225,14 @@ function simulateTick() {
       zone.currentOccupancy = Math.max(0, zone.currentOccupancy - inflow);
     }
     zone.density = zone.currentOccupancy / zone.capacity;
-    zone.riskLevel = zone.density > 0.9 ? "critical" : zone.density > 0.75 ? "high" : zone.density > 0.5 ? "medium" : "low";
+    zone.riskLevel =
+      zone.density > 0.9
+        ? "critical"
+        : zone.density > 0.75
+          ? "high"
+          : zone.density > 0.5
+            ? "medium"
+            : "low";
     zone.temperature = 32 + Math.random() * 5;
     totalOccupancy += zone.currentOccupancy;
   });
@@ -167,7 +249,13 @@ function simulateTick() {
 
   // Random incidents
   if (Math.random() < 0.03) {
-    const incidentTypes = ["medical", "security", "congestion", "equipment_failure", "weather_alert"];
+    const incidentTypes = [
+      "medical",
+      "security",
+      "congestion",
+      "equipment_failure",
+      "weather_alert",
+    ];
     const severity = ["low", "medium", "high", "critical"];
     const zoneKeys = Object.keys(zones);
     const incident = {
@@ -209,13 +297,14 @@ function generateIncidentDescription(incident) {
 }
 
 // Start simulation
-simulationInterval = setInterval(simulateTick, 3000);
+setInterval(simulateTick, 3000);
 
 // --- Gemini Agentic Tools (Function Calling Definitions) ---
 const agentTools = [
   {
     name: "get_gate_status",
-    description: "Get real-time status of a specific gate or all gates including flow rate, queue length, and scanner status",
+    description:
+      "Get real-time status of a specific gate or all gates including flow rate, queue length, and scanner status",
     parameters: {
       type: "object",
       properties: {
@@ -250,13 +339,31 @@ const agentTools = [
   },
   {
     name: "trigger_emergency_protocol",
-    description: "Activate an emergency response protocol for a specific zone or the entire stadium",
+    description:
+      "Activate an emergency response protocol for a specific zone or the entire stadium",
     parameters: {
       type: "object",
       properties: {
-        protocol_type: { type: "string", enum: ["evacuation", "medical_dispatch", "security_lockdown", "weather_shelter", "crowd_control"], description: "Type of emergency protocol" },
-        target_zone: { type: "string", description: "Zone to apply protocol to, or 'all' for stadium-wide" },
-        severity: { type: "string", enum: ["low", "medium", "high", "critical"], description: "Severity level" },
+        protocol_type: {
+          type: "string",
+          enum: [
+            "evacuation",
+            "medical_dispatch",
+            "security_lockdown",
+            "weather_shelter",
+            "crowd_control",
+          ],
+          description: "Type of emergency protocol",
+        },
+        target_zone: {
+          type: "string",
+          description: "Zone to apply protocol to, or 'all' for stadium-wide",
+        },
+        severity: {
+          type: "string",
+          enum: ["low", "medium", "high", "critical"],
+          description: "Severity level",
+        },
       },
       required: ["protocol_type", "target_zone", "severity"],
     },
@@ -268,7 +375,11 @@ const agentTools = [
       type: "object",
       properties: {
         gate_id: { type: "string", description: "Gate ID to update" },
-        new_status: { type: "string", enum: ["open", "closed", "restricted", "exit_only"], description: "New gate status" },
+        new_status: {
+          type: "string",
+          enum: ["open", "closed", "restricted", "exit_only"],
+          description: "New gate status",
+        },
       },
       required: ["gate_id", "new_status"],
     },
@@ -283,18 +394,24 @@ const agentTools = [
   },
   {
     name: "get_crowd_analytics",
-    description: "Get crowd flow analytics including historical trends, peak times, and predictions",
+    description:
+      "Get crowd flow analytics including historical trends, peak times, and predictions",
     parameters: {
       type: "object",
       properties: {
-        metric: { type: "string", enum: ["occupancy_trend", "gate_throughput", "zone_distribution", "risk_summary"], description: "Analytics metric to retrieve" },
+        metric: {
+          type: "string",
+          enum: ["occupancy_trend", "gate_throughput", "zone_distribution", "risk_summary"],
+          description: "Analytics metric to retrieve",
+        },
       },
       required: ["metric"],
     },
   },
   {
     name: "assign_ticket_gate",
-    description: "Dynamically assign optimal gate entry for a ticket batch based on current conditions",
+    description:
+      "Dynamically assign optimal gate entry for a ticket batch based on current conditions",
     parameters: {
       type: "object",
       properties: {
@@ -333,7 +450,7 @@ function executeToolCall(name, args) {
         status: "executed",
       };
       stadiumState.routingDecisions.unshift(decision);
-      stadiumState.alerts.unshift({
+      addAlert({
         id: uuidv4(),
         type: "reroute",
         message: `Crowd rerouted from ${args.from_gate} to ${args.to_gate}: ${args.reason}`,
@@ -352,7 +469,7 @@ function executeToolCall(name, args) {
         timestamp: Date.now(),
         status: "activated",
       };
-      stadiumState.alerts.unshift({
+      addAlert({
         id: uuidv4(),
         type: "emergency",
         message: `EMERGENCY: ${args.protocol_type.replace(/_/g, " ").toUpperCase()} protocol activated for ${args.target_zone} [${args.severity}]`,
@@ -366,7 +483,7 @@ function executeToolCall(name, args) {
       const gate = stadiumState.gates[args.gate_id];
       if (!gate) return { error: `Gate ${args.gate_id} not found` };
       gate.status = args.new_status;
-      stadiumState.alerts.unshift({
+      addAlert({
         id: uuidv4(),
         type: "gate_update",
         message: `Gate ${args.gate_id} status changed to ${args.new_status}`,
@@ -381,9 +498,11 @@ function executeToolCall(name, args) {
         condition: stadiumState.weatherCondition,
         temperature: stadiumState.temperature,
         humidity: stadiumState.humidity,
-        advisory: stadiumState.weatherCondition.includes("rain") || stadiumState.weatherCondition.includes("storm")
-          ? "Weather advisory active. Consider activating weather shelter protocol."
-          : "Conditions normal.",
+        advisory:
+          stadiumState.weatherCondition.includes("rain") ||
+          stadiumState.weatherCondition.includes("storm")
+            ? "Weather advisory active. Consider activating weather shelter protocol."
+            : "Conditions normal.",
       };
     }
     case "get_crowd_analytics": {
@@ -392,7 +511,10 @@ function executeToolCall(name, args) {
           return {
             current: stadiumState.currentOccupancy,
             capacity: stadiumState.capacity,
-            utilizationPercent: ((stadiumState.currentOccupancy / stadiumState.capacity) * 100).toFixed(1),
+            utilizationPercent: (
+              (stadiumState.currentOccupancy / stadiumState.capacity) *
+              100
+            ).toFixed(1),
             history: stadiumState.crowdHistory.slice(-30),
           };
         case "gate_throughput":
@@ -441,7 +563,7 @@ function executeToolCall(name, args) {
       };
       const dir = directionMap[args.zone] || "North";
       const candidates = Object.entries(stadiumState.gates)
-        .filter(([id, g]) => g.direction === dir && g.status === "open")
+        .filter(([_, g]) => g.direction === dir && g.status === "open")
         .sort((a, b) => a[1].queueLength - b[1].queueLength);
       if (candidates.length === 0) {
         return { error: "No available gates for this zone direction" };
@@ -471,15 +593,92 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", service: "crowdpulse-ai", timestamp: new Date().toISOString() });
 });
 
+// Auth endpoints
+app.post("/api/auth/token", (req, res) => {
+  const { username, role, email } = req.body;
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+
+  // Verify or adjust role/clearance based on backend rules
+  let verifiedRole = role || "Operations Analyst";
+
+  if (verifiedRole === "Stadium Director") {
+    const isAuthorized =
+      username === "abhiraj" ||
+      email === "iamabhiraj8825@gmail.com" ||
+      username.includes("google") ||
+      email.includes("google") ||
+      email.includes("@gmail.com");
+
+    if (!isAuthorized) {
+      verifiedRole = "Operations Analyst";
+    }
+  } else if (verifiedRole === "Security Chief") {
+    const isAuthorized = username === "security_chief" || email === "security@crowdpulse.ai";
+    if (!isAuthorized) {
+      verifiedRole = "Operations Analyst";
+    }
+  }
+
+  const roleClearance = {
+    "Stadium Director": "Level-5 (Super-Admin)",
+    "Security Chief": "Level-4 (Incident-Cmd)",
+    "Operations Lead": "Level-3 (Tactical-Ops)",
+    "Operations Analyst": "Level-2 (Standard-Write)",
+  };
+
+  const clearance = roleClearance[verifiedRole] || "Level-2 (Standard-Write)";
+  const token = signToken({ username, role: verifiedRole, email, clearance });
+  res.json({ token, role: verifiedRole, clearance });
+});
+
+app.post("/api/auth/verify-role", authMiddleware, (req, res) => {
+  const { role } = req.body;
+  const { username, email } = req.user;
+
+  let verifiedRole = role;
+
+  if (verifiedRole === "Stadium Director") {
+    const isAuthorized =
+      username === "abhiraj" ||
+      email === "iamabhiraj8825@gmail.com" ||
+      username.includes("google") ||
+      email.includes("google") ||
+      email.includes("@gmail.com");
+
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Access denied: Unauthorized role assignment" });
+    }
+  } else if (verifiedRole === "Security Chief") {
+    const isAuthorized = username === "security_chief" || email === "security@crowdpulse.ai";
+    if (!isAuthorized) {
+      return res.status(403).json({ error: "Access denied: Unauthorized role assignment" });
+    }
+  }
+
+  const roleClearance = {
+    "Stadium Director": "Level-5 (Super-Admin)",
+    "Security Chief": "Level-4 (Incident-Cmd)",
+    "Operations Lead": "Level-3 (Tactical-Ops)",
+    "Operations Analyst": "Level-2 (Standard-Write)",
+  };
+
+  const clearance = roleClearance[verifiedRole] || "Level-2 (Standard-Write)";
+  const newToken = signToken({ username, role: verifiedRole, email, clearance });
+
+  res.json({ success: true, role: verifiedRole, clearance, token: newToken });
+});
+
 // Reset simulation state
-app.post("/api/stadium/reset", (req, res) => {
+app.post("/api/stadium/reset", authMiddleware, (req, res) => {
   resetStadiumState();
   res.json({ success: true, message: "Simulation state reset successfully." });
 });
 
 // Get full stadium state
 app.get("/api/stadium/state", (req, res) => {
-  const { crowdHistory, ...stateWithoutHistory } = stadiumState;
+  const { crowdHistory: _, ...stateWithoutHistory } = stadiumState;
   res.json({
     ...stateWithoutHistory,
     currentOccupancy: stadiumState.currentOccupancy,
@@ -510,14 +709,14 @@ app.get("/api/stadium/alerts", (req, res) => {
 });
 
 // Update match status
-app.post("/api/stadium/match-status", (req, res) => {
+app.post("/api/stadium/match-status", authMiddleware, (req, res) => {
   const { status } = req.body;
   const validStatuses = ["pre-match", "ongoing", "break", "post-match", "emergency"];
   if (!validStatuses.includes(status)) {
     return res.status(400).json({ error: "Invalid match status" });
   }
   stadiumState.matchStatus = status;
-  stadiumState.alerts.unshift({
+  addAlert({
     id: uuidv4(),
     type: "status_change",
     message: `Match status changed to: ${status.toUpperCase()}`,
@@ -529,9 +728,17 @@ app.post("/api/stadium/match-status", (req, res) => {
 });
 
 // Manual gate control
-app.post("/api/stadium/gate/:gateId", (req, res) => {
+app.post("/api/stadium/gate/:gateId", authMiddleware, (req, res) => {
   const { gateId } = req.params;
   const { status } = req.body;
+
+  const validStatuses = ["open", "closed", "restricted", "exit_only"];
+  if (!validStatuses.includes(status)) {
+    return res
+      .status(400)
+      .json({ error: "Invalid status. Allowed values are: open, closed, restricted, exit_only." });
+  }
+
   const gate = stadiumState.gates[gateId];
   if (!gate) return res.status(404).json({ error: "Gate not found" });
   gate.status = status;
@@ -540,7 +747,7 @@ app.post("/api/stadium/gate/:gateId", (req, res) => {
 });
 
 // Resolve incident
-app.post("/api/stadium/incidents/:incidentId/resolve", (req, res) => {
+app.post("/api/stadium/incidents/:incidentId/resolve", authMiddleware, (req, res) => {
   const incident = stadiumState.incidents.find((i) => i.id === req.params.incidentId);
   if (!incident) return res.status(404).json({ error: "Incident not found" });
   incident.status = "resolved";
@@ -549,8 +756,8 @@ app.post("/api/stadium/incidents/:incidentId/resolve", (req, res) => {
 });
 
 // --- AI Agent Endpoint (Gemini with Function Calling) ---
-app.post("/api/agent/query", async (req, res) => {
-  const { message, context } = req.body;
+app.post("/api/agent/query", authMiddleware, async (req, res) => {
+  const { message } = req.body;
 
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
@@ -685,13 +892,20 @@ app.get("/api/agent/auto-analyze", async (req, res) => {
     analysis.recommendations.push("URGENT: Activate crowd control protocol for critical zones");
   }
   if (congestedGates.length > 0) {
-    analysis.recommendations.push(`Reroute traffic from congested gates: ${congestedGates.map((g) => g.split(":")[0]).join(", ")}`);
+    analysis.recommendations.push(
+      `Reroute traffic from congested gates: ${congestedGates.map((g) => g.split(":")[0]).join(", ")}`
+    );
   }
-  if (stadiumState.weatherCondition.includes("rain") || stadiumState.weatherCondition.includes("storm")) {
+  if (
+    stadiumState.weatherCondition.includes("rain") ||
+    stadiumState.weatherCondition.includes("storm")
+  ) {
     analysis.recommendations.push("Weather alert: Consider activating weather shelter protocol");
   }
   if (activeIncidents.length > 3) {
-    analysis.recommendations.push("Multiple active incidents detected. Consider escalating to security command.");
+    analysis.recommendations.push(
+      "Multiple active incidents detected. Consider escalating to security command."
+    );
   }
   if (analysis.recommendations.length === 0) {
     analysis.recommendations.push("All systems nominal. Continue monitoring.");

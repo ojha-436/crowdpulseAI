@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
-import { Activity, Mail, Lock, User, Shield, AlertCircle } from 'lucide-react';
+import React, { useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
+import { Activity, Mail, Lock, User, Shield, AlertCircle } from "lucide-react";
 
 export default function AuthPage() {
   const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  
+
   // Form fields
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   // UI states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -23,17 +23,17 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        if (!email || !password) throw new Error('All fields are required.');
+        if (!email || !password) throw new Error("All fields are required.");
         await login(email, password);
       } else {
         if (!username || !email || !password || !confirmPassword) {
-          throw new Error('All fields are required.');
+          throw new Error("All fields are required.");
         }
         if (password !== confirmPassword) {
-          throw new Error('Passwords do not match.');
+          throw new Error("Passwords do not match.");
         }
         if (password.length < 6) {
-          throw new Error('Password must be at least 6 characters.');
+          throw new Error("Password must be at least 6 characters.");
         }
         await register(username, email, password);
       }
@@ -44,10 +44,9 @@ export default function AuthPage() {
     }
   };
 
-
   const handleQuickLogin = (demoEmail) => {
     setEmail(demoEmail);
-    setPassword('password123');
+    setPassword("password123");
     setIsLogin(true);
     setError(null);
   };
@@ -57,7 +56,7 @@ export default function AuthPage() {
       {/* Decorative Radial Background Lights */}
       <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-pulse-500/10 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-cyan-500/10 blur-[100px] pointer-events-none" />
-      
+
       <div className="w-full max-w-[440px] my-8 relative z-10 flex flex-col items-center">
         {/* App Branding */}
         <div className="flex items-center gap-3 mb-8">
@@ -65,20 +64,26 @@ export default function AuthPage() {
             <Activity size={22} className="text-midnight-900" strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-wide text-white leading-tight">CrowdPulse AI</h1>
-            <p className="text-xs text-pulse-400 font-mono tracking-widest uppercase">Command Center Portal</p>
+            <h1 className="text-xl font-bold tracking-wide text-white leading-tight">
+              CrowdPulse AI
+            </h1>
+            <p className="text-xs text-pulse-400 font-mono tracking-widest uppercase">
+              Command Center Portal
+            </p>
           </div>
         </div>
 
         {/* Auth Glassmorphism Card */}
         <div className="w-full bg-midnight-800/40 backdrop-blur-2xl border border-white/[0.08] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] p-6 sm:p-8 rounded-3xl relative overflow-hidden transition-all duration-300 hover:border-white/[0.12] hover:shadow-[0_25px_60px_-10px_rgba(56,242,176,0.05)]">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-pulse-400 via-cyan-400 to-pulse-400" />
-          
+
           <h2 className="text-2xl font-bold text-white mb-2">
-            {isLogin ? 'Welcome Back Officer' : 'Register Operator'}
+            {isLogin ? "Welcome Back Officer" : "Register Operator"}
           </h2>
           <p className="text-xs text-gray-400 mb-6">
-            {isLogin ? 'Provide credentials to access live stadium telemetry.' : 'Establish secure credentials for system clearance.'}
+            {isLogin
+              ? "Provide credentials to access live stadium telemetry."
+              : "Establish secure credentials for system clearance."}
           </p>
 
           {error && (
@@ -88,16 +93,20 @@ export default function AuthPage() {
             </div>
           )}
 
-
-
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">Username</label>
+                <label htmlFor="auth-username" className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">
+                  Username
+                </label>
                 <div className="relative">
-                  <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <User
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
                   <input
+                    id="auth-username"
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -110,12 +119,16 @@ export default function AuthPage() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">
-                {isLogin ? 'Email or Username' : 'Email Address'}
+              <label htmlFor="auth-email" className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">
+                {isLogin ? "Email or Username" : "Email Address"}
               </label>
               <div className="relative">
-                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <Mail
+                  size={14}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
+                  id="auth-email"
                   type={isLogin ? "text" : "email"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -127,10 +140,16 @@ export default function AuthPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">Password</label>
+              <label htmlFor="auth-password" className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">
+                Password
+              </label>
               <div className="relative">
-                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <Lock
+                  size={14}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
+                  id="auth-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -143,10 +162,16 @@ export default function AuthPage() {
 
             {!isLogin && (
               <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">Confirm Password</label>
+                <label htmlFor="auth-confirmPassword" className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">
+                  Confirm Password
+                </label>
                 <div className="relative">
-                  <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <Lock
+                    size={14}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
                   <input
+                    id="auth-confirmPassword"
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -166,9 +191,9 @@ export default function AuthPage() {
               {loading ? (
                 <div className="w-5 h-5 border-2 border-midnight-900 border-t-transparent rounded-full animate-spin" />
               ) : isLogin ? (
-                'Sign In to Terminal'
+                "Sign In to Terminal"
               ) : (
-                'Generate Operator ID'
+                "Generate Operator ID"
               )}
             </button>
           </form>
@@ -182,12 +207,12 @@ export default function AuthPage() {
               }}
               className="text-xs text-gray-400 hover:text-pulse-400 transition-colors font-medium"
             >
-              {isLogin ? "Don't have an operator ID? Create Account" : 'Already authorized? Sign In'}
+              {isLogin
+                ? "Don't have an operator ID? Create Account"
+                : "Already authorized? Sign In"}
             </button>
           </div>
         </div>
-
-
       </div>
     </div>
   );
