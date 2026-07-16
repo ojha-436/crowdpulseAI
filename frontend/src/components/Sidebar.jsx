@@ -41,7 +41,7 @@ export default function Sidebar({ activeView, setActiveView }) {
       {/* Logo */}
       <div className="h-16 flex items-center gap-3 px-4 border-b border-white/[0.04]">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pulse-400 to-cyan-400 flex items-center justify-center shrink-0">
-          <Activity size={18} className="text-midnight-900" strokeWidth={2.5} />
+          <Activity size={18} className="text-midnight-900" strokeWidth={2.5} aria-hidden="true" />
         </div>
         <div className="hidden lg:block">
           <h1 className="text-sm font-bold tracking-wide text-white">CrowdPulse</h1>
@@ -51,8 +51,8 @@ export default function Sidebar({ activeView, setActiveView }) {
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
+      {/* Nav — labelled primary navigation landmark. */}
+      <nav aria-label="Primary navigation" className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = activeView === item.id;
@@ -60,6 +60,11 @@ export default function Sidebar({ activeView, setActiveView }) {
             <button
               key={item.id}
               onClick={() => setActiveView(item.id)}
+              // aria-label keeps the button named even when the text label is
+              // hidden on the collapsed (mobile) sidebar; aria-current marks the
+              // active view for assistive tech.
+              aria-label={item.label}
+              aria-current={active ? "page" : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
                 ${
                   active
@@ -69,11 +74,15 @@ export default function Sidebar({ activeView, setActiveView }) {
             >
               <Icon
                 size={18}
+                aria-hidden="true"
                 className={active ? "text-pulse-400" : "text-gray-400 group-hover:text-gray-300"}
               />
               <span className="hidden lg:block truncate">{item.label}</span>
               {active && (
-                <div className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-pulse-400 animate-pulse-glow" />
+                <div
+                  aria-hidden="true"
+                  className="hidden lg:block ml-auto w-1.5 h-1.5 rounded-full bg-pulse-400 animate-pulse-glow"
+                />
               )}
             </button>
           );
@@ -84,10 +93,16 @@ export default function Sidebar({ activeView, setActiveView }) {
       {currentUser && (
         <button
           onClick={() => setActiveView("profile")}
+          // Labelled explicitly because the name/role text is hidden on mobile.
+          aria-label={`Profile: ${currentUser.displayName}`}
+          aria-current={activeView === "profile" ? "page" : undefined}
           className={`p-3 border-t border-white/[0.04] text-left hover:bg-white/[0.02] transition-colors w-full flex items-center gap-2.5 group shrink-0
             ${activeView === "profile" ? "bg-pulse-500/5" : ""}`}
         >
-          <div className="w-8 h-8 rounded-lg bg-midnight-600 border border-white/[0.06] flex items-center justify-center text-lg shrink-0">
+          <div
+            aria-hidden="true"
+            className="w-8 h-8 rounded-lg bg-midnight-600 border border-white/[0.06] flex items-center justify-center text-lg shrink-0"
+          >
             {avatarEmojis[currentUser.avatar] || "👤"}
           </div>
           <div className="hidden lg:block min-w-0 flex-1">
@@ -101,8 +116,8 @@ export default function Sidebar({ activeView, setActiveView }) {
         </button>
       )}
 
-      {/* Bottom info */}
-      <div className="p-3 border-t border-white/[0.04] shrink-0">
+      {/* Bottom info — decorative live-refresh indicator. */}
+      <div className="p-3 border-t border-white/[0.04] shrink-0" aria-hidden="true">
         <div className="hidden lg:flex items-center gap-2 px-2">
           <div className="w-1.5 h-1.5 rounded-full bg-pulse-400 animate-pulse-glow" />
           <span className="text-[10px] text-gray-400 font-mono uppercase tracking-wider">

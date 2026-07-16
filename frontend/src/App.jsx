@@ -43,7 +43,13 @@ function MainApp() {
 
   return (
     <div className="flex h-screen bg-midnight-900 overflow-hidden">
-      <div className="noise-overlay" />
+      {/* Skip link: first focusable element, lets keyboard users jump past the
+          sidebar/topbar straight to the main dashboard content. */}
+      <a href="#main-content" className="sr-only sr-only-focusable">
+        Skip to main content
+      </a>
+
+      <div className="noise-overlay" aria-hidden="true" />
 
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
 
@@ -52,7 +58,12 @@ function MainApp() {
 
         {state && state.alerts && <AlertBanner alerts={state.alerts} />}
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5">
+        {/* Primary content landmark; targeted by the skip link above. */}
+        <main
+          id="main-content"
+          aria-label="Stadium command center dashboard"
+          className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-5"
+        >
           <Suspense fallback={<LoadingSkeleton />}>
             {activeView === "dashboard" && state && (
               <>
@@ -94,7 +105,13 @@ function MainApp() {
       )}
 
       {error && (
-        <div className="fixed bottom-4 right-4 z-50 bg-alert-500/90 text-white px-4 py-3 rounded-xl text-sm font-medium backdrop-blur-sm animate-slide-up">
+        // Polite live region: announces transient connection issues without
+        // interrupting whatever the user is currently doing.
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 right-4 z-50 bg-alert-500/90 text-white px-4 py-3 rounded-xl text-sm font-medium backdrop-blur-sm animate-slide-up"
+        >
           Connection issue: {error}
         </div>
       )}

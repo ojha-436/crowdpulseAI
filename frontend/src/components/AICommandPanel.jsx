@@ -109,7 +109,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.04] shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pulse-400 to-cyan-400 flex items-center justify-center">
-              <Bot size={16} className="text-midnight-900" />
+              <Bot size={16} className="text-midnight-900" aria-hidden="true" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-white">AI Command Agent</h3>
@@ -120,7 +120,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
           </div>
           {overlay && (
             <button onClick={onClose} aria-label="Close AI Command Panel" className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -141,8 +141,13 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Messages — log live region so new AI replies are announced politely. */}
+        <div
+          role="log"
+          aria-live="polite"
+          aria-label="Conversation with AI Command Agent"
+          className="flex-1 overflow-y-auto px-5 py-4 space-y-4"
+        >
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -150,7 +155,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
             >
               {msg.role === "assistant" && (
                 <div className="w-7 h-7 rounded-lg bg-pulse-400/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles size={12} className="text-pulse-400" />
+                  <Sparkles size={12} className="text-pulse-400" aria-hidden="true" />
                 </div>
               )}
               <div
@@ -167,7 +172,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
                         key={ti}
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-400/10 text-purple-400 text-[10px] font-mono"
                       >
-                        <Wrench size={9} />
+                        <Wrench size={9} aria-hidden="true" />
                         {t.tool}
                       </span>
                     ))}
@@ -185,12 +190,13 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
           ))}
 
           {loading && (
-            <div className="flex items-center gap-3 animate-fade-in">
+            // status role announces the loading state to assistive tech.
+            <div className="flex items-center gap-3 animate-fade-in" role="status">
               <div className="w-7 h-7 rounded-lg bg-pulse-400/10 flex items-center justify-center shrink-0">
-                <Loader2 size={12} className="text-pulse-400 animate-spin" />
+                <Loader2 size={12} className="text-pulse-400 animate-spin" aria-hidden="true" />
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-400">
-                <span className="inline-flex gap-1">
+                <span className="inline-flex gap-1" aria-hidden="true">
                   <span
                     className="w-1.5 h-1.5 bg-pulse-400 rounded-full animate-bounce"
                     style={{ animationDelay: "0ms" }}
@@ -222,6 +228,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder="Command the stadium AI..."
+              aria-label="Command the stadium AI"
               className="flex-1 bg-transparent text-sm text-white placeholder-gray-500 outline-none"
               disabled={loading}
             />
@@ -231,7 +238,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
               aria-label="Send query"
               className="p-2 rounded-lg bg-pulse-400/10 text-pulse-400 hover:bg-pulse-400/20 transition-colors disabled:opacity-30"
             >
-              <Send size={14} />
+              <Send size={14} aria-hidden="true" />
             </button>
           </div>
         </div>

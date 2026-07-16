@@ -6,9 +6,43 @@
 
 import { test, describe, before, beforeEach } from "node:test";
 import assert from "node:assert";
+import crypto from "node:crypto";
 
 const PORT = process.env.PORT || 8085;
 const BASE_URL = `http://localhost:${PORT}`;
+
+/**
+ * The JWT secret the test server runs with (run-e2e.js does not set JWT_SECRET,
+ * so the server falls back to this default). Used to forge tokens for the
+ * security tests below.
+ * @type {string}
+ */
+const TEST_JWT_SECRET = "crowdpulse-super-secret-key-123456";
+
+/**
+ * Signs a JWT the same way the server does, allowing tests to craft tokens with
+ * arbitrary claims (e.g. an already-expired token) that pass the signature check.
+ * @param {Object} payload - Claims to encode.
+ * @returns {string} A validly-signed JWT string.
+ */
+function signTestToken(payload) {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", TEST_JWT_SECRET)
+    .update(`${header}.${body}`)
+    .digest("base64url");
+  return `${header}.${body}.${signature}`;
+}
+
+/**
+ * Decodes the payload segment of a JWT without verifying its signature.
+ * @param {string} token - The JWT to decode.
+ * @returns {Object} The decoded claims.
+ */
+function decodeTokenPayload(token) {
+  return JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+}
 
 const originalFetch = globalThis.fetch;
 let authToken = "";
@@ -1103,6 +1137,166 @@ describe("CrowdPulse E2E Test Suite", () => {
       assert.strictEqual(verifyRes.status, 403);
       const verifyData = await verifyRes.json();
       assert.strictEqual(verifyData.error, "Access denied: Unauthorized role assignment");
+    });
+  });
+
+  // ==========================================
+  // TIER 6: TOKEN LIFECYCLE, INPUT VALIDATION & HARDENED HEADERS
+  // ==========================================
+  describe("Tier 6: Security Hardening & Input Validation", () => {
+    test("T6_1: Issued token carries iat and 8h exp claims", async () => {
+      const res = await originalFetch(`${BASE_URL}/api/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "claims_user", email: "claims@crowdpulse.ai" }),
+      });
+      const { token } = await res.json();
+      const claims = decodeTokenPayload(token);
+      assert.ok(typeof claims.iat === "number", "iat claim present");
+      assert.ok(typeof claims.exp === "number", "exp claim present");
+      assert.strictEqual(claims.exp - claims.iat, 8 * 60 * 60 * 1000);
+    });
+
+    test("T6_2: Expired token is rejected with 401", async () => {
+      const past = Date.now() - 60 * 1000;
+      const expiredToken = signTestToken({
+        username: "abhiraj",
+        role: "Stadium Director",
+        email: "iamabhiraj8825@gmail.com",
+        iat: past - 1000,
+        exp: past,
+      });
+      const res = await fetch(`${BASE_URL}/api/stadium/reset`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${expiredToken}` },
+      });
+      assert.strictEqual(res.status, 401);
+      const data = await res.json();
+      assert.strictEqual(data.error, "Unauthorized: Invalid token");
+    });
+
+    test("T6_3: Tampered token payload is rejected with 401", async () => {
+      const valid = signTestToken({ username: "abhiraj", role: "Operations Analyst", exp: Date.now() + 60000 });
+      const [header, , signature] = valid.split(".");
+      // Swap in a payload the attacker forged, keeping the original signature.
+      const forgedBody = Buffer.from(
+        JSON.stringify({ username: "attacker", role: "Stadium Director", exp: Date.now() + 60000 })
+      ).toString("base64url");
+      const tampered = `${header}.${forgedBody}.${signature}`;
+      const res = await fetch(`${BASE_URL}/api/stadium/reset`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tampered}` },
+      });
+      assert.strictEqual(res.status, 401);
+    });
+
+    test("T6_4: Login rejects oversized username (400)", async () => {
+      const res = await originalFetch(`${BASE_URL}/api/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "x".repeat(500) }),
+      });
+      assert.strictEqual(res.status, 400);
+    });
+
+    test("T6_5: Login rejects non-string role (400)", async () => {
+      const res = await originalFetch(`${BASE_URL}/api/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "roleuser", role: { admin: true } }),
+      });
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.strictEqual(data.error, "Invalid role");
+    });
+
+    test("T6_6: Login rejects invalid email type (400)", async () => {
+      const res = await originalFetch(`${BASE_URL}/api/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "emailuser", email: 12345 }),
+      });
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.strictEqual(data.error, "Invalid email");
+    });
+
+    test("T6_7: AI query rejects oversized message (400)", async () => {
+      const res = await fetch(`${BASE_URL}/api/agent/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "a".repeat(5000) }),
+      });
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.strictEqual(data.error, "Message is required");
+    });
+
+    test("T6_8: verify-role rejects unknown role with 400", async () => {
+      const res = await fetch(`${BASE_URL}/api/auth/verify-role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "Supreme Overlord" }),
+      });
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.strictEqual(data.error, "Invalid role");
+    });
+
+    test("T6_9: Content-Security-Policy header is present and self-scoped", async () => {
+      const res = await fetch(`${BASE_URL}/health`);
+      const csp = res.headers.get("content-security-policy");
+      assert.ok(csp, "CSP header present");
+      assert.ok(csp.includes("default-src 'self'"), "CSP scopes default-src to self");
+      assert.ok(csp.includes("object-src 'none'"), "CSP forbids plugins");
+    });
+
+    test("T6_10: Referrer-Policy header restricts referrer leakage", async () => {
+      const res = await fetch(`${BASE_URL}/health`);
+      assert.strictEqual(
+        res.headers.get("referrer-policy"),
+        "strict-origin-when-cross-origin"
+      );
+    });
+
+    test("T6_11: Permissions-Policy header disables unused browser features", async () => {
+      const res = await fetch(`${BASE_URL}/health`);
+      const pp = res.headers.get("permissions-policy");
+      assert.ok(pp && pp.includes("camera=()"), "camera disabled");
+      assert.ok(pp.includes("microphone=()"), "microphone disabled");
+    });
+
+    test("T6_12: X-Powered-By header is not exposed", async () => {
+      const res = await fetch(`${BASE_URL}/health`);
+      assert.strictEqual(res.headers.get("x-powered-by"), null);
+    });
+
+    test("T6_13: Auth endpoints expose rate-limit headers", async () => {
+      const res = await originalFetch(`${BASE_URL}/api/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "rl_probe" }),
+      });
+      const limit = res.headers.get("x-ratelimit-limit");
+      assert.ok(limit, "rate-limit headers present on auth route");
+      assert.ok(Number(limit) > 0, "rate-limit is a positive integer");
+    });
+
+    test("T6_14: Valid unexpired token still authorizes protected routes", async () => {
+      const goodToken = signTestToken({
+        username: "abhiraj",
+        role: "Stadium Director",
+        email: "iamabhiraj8825@gmail.com",
+        exp: Date.now() + 60000,
+      });
+      const res = await fetch(`${BASE_URL}/api/stadium/match-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${goodToken}` },
+        body: JSON.stringify({ status: "ongoing" }),
+      });
+      assert.strictEqual(res.status, 200);
+      const data = await res.json();
+      assert.strictEqual(data.success, true);
     });
   });
 });

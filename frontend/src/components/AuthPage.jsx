@@ -72,7 +72,7 @@ export default function AuthPage() {
         {/* App Branding */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-pulse-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-pulse-400/20">
-            <Activity size={22} className="text-midnight-900" strokeWidth={2.5} />
+            <Activity size={22} className="text-midnight-900" strokeWidth={2.5} aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-wide text-white leading-tight">
@@ -98,8 +98,14 @@ export default function AuthPage() {
           </p>
 
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-alert-500/15 border border-alert-500/20 flex items-start gap-2.5 text-alert-400 text-xs animate-slide-up">
-              <AlertCircle size={14} className="shrink-0 mt-0.5" />
+            // role="alert" announces the validation error; inputs reference this
+            // node via aria-describedby (id="auth-error").
+            <div
+              id="auth-error"
+              role="alert"
+              className="mb-4 p-3 rounded-xl bg-alert-500/15 border border-alert-500/20 flex items-start gap-2.5 text-alert-400 text-xs animate-slide-up"
+            >
+              <AlertCircle size={14} className="shrink-0 mt-0.5" aria-hidden="true" />
               <span>{error}</span>
             </div>
           )}
@@ -115,6 +121,7 @@ export default function AuthPage() {
                   <User
                     size={14}
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    aria-hidden="true"
                   />
                   <input
                     id="auth-username"
@@ -123,6 +130,8 @@ export default function AuthPage() {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="abhiraj"
                     disabled={loading}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? "auth-error" : undefined}
                     className="w-full pl-10 pr-4 py-2 bg-midnight-700/40 border border-white/[0.08] focus:border-pulse-400/50 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
                   />
                 </div>
@@ -137,6 +146,7 @@ export default function AuthPage() {
                 <Mail
                   size={14}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  aria-hidden="true"
                 />
                 <input
                   id="auth-email"
@@ -145,6 +155,8 @@ export default function AuthPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={isLogin ? "iamabhiraj8825@gmail.com" : "officer@stadium.gov"}
                   disabled={loading}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
                   className="w-full pl-10 pr-4 py-2 bg-midnight-700/40 border border-white/[0.08] focus:border-pulse-400/50 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
                 />
               </div>
@@ -158,6 +170,7 @@ export default function AuthPage() {
                 <Lock
                   size={14}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                  aria-hidden="true"
                 />
                 <input
                   id="auth-password"
@@ -166,6 +179,8 @@ export default function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={loading}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "auth-error" : undefined}
                   className="w-full pl-10 pr-4 py-2 bg-midnight-700/40 border border-white/[0.08] focus:border-pulse-400/50 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
                 />
               </div>
@@ -180,6 +195,7 @@ export default function AuthPage() {
                   <Lock
                     size={14}
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+                    aria-hidden="true"
                   />
                   <input
                     id="auth-confirmPassword"
@@ -188,6 +204,8 @@ export default function AuthPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                     disabled={loading}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? "auth-error" : undefined}
                     className="w-full pl-10 pr-4 py-2 bg-midnight-700/40 border border-white/[0.08] focus:border-pulse-400/50 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none transition-colors"
                   />
                 </div>

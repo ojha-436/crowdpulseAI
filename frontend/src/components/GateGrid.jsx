@@ -52,7 +52,7 @@ export default function GateGrid({ gates, expanded }) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <DoorOpen size={16} className="text-cyan-400" />
+          <DoorOpen size={16} className="text-cyan-400" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-white">Gate Control Panel</h3>
         </div>
         <span className="text-[10px] font-mono text-gray-400">
@@ -71,7 +71,10 @@ export default function GateGrid({ gates, expanded }) {
               key={id}
               tabIndex={0}
               role="button"
-              aria-label={`Gate ${id} status: ${gate.status}`}
+              aria-label={`Gate ${id} status: ${gate.status}. Change status`}
+              // This card opens a status menu, so expose menu-trigger semantics.
+              aria-haspopup="menu"
+              aria-expanded={selectedGate === id}
               className={`relative p-3 rounded-xl border border-white/[0.04] bg-midnight-900/50 hover:border-white/[0.08] transition-all group cursor-pointer focus:outline-none focus:ring-1 focus:ring-pulse-400 ${
                 selectedGate === id ? "ring-1 ring-pulse-400/30" : ""
               }`}
@@ -80,13 +83,15 @@ export default function GateGrid({ gates, expanded }) {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   setSelectedGate(selectedGate === id ? null : id);
+                } else if (e.key === "Escape") {
+                  setSelectedGate(null);
                 }
               }}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-white">{id}</span>
                 <span className={`status-badge text-[10px] ${style.bg} ${style.text}`}>
-                  <span className={`w-1 h-1 rounded-full ${style.dot}`} />
+                  <span className={`w-1 h-1 rounded-full ${style.dot}`} aria-hidden="true" />
                   {gate.status}
                 </span>
               </div>
@@ -94,14 +99,14 @@ export default function GateGrid({ gates, expanded }) {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-gray-400 flex items-center gap-1">
-                    <Zap size={10} />
+                    <Zap size={10} aria-hidden="true" />
                     Flow
                   </span>
                   <span className="font-mono text-gray-300">{gate.currentFlow}/min</span>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-gray-400 flex items-center gap-1">
-                    <Users size={10} />
+                    <Users size={10} aria-hidden="true" />
                     Queue
                   </span>
                   <span
@@ -112,7 +117,7 @@ export default function GateGrid({ gates, expanded }) {
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-gray-400 flex items-center gap-1">
-                    <Clock size={10} />
+                    <Clock size={10} aria-hidden="true" />
                     Wait
                   </span>
                   <span className="font-mono text-gray-300">
@@ -121,8 +126,15 @@ export default function GateGrid({ gates, expanded }) {
                 </div>
               </div>
 
-              {/* Load bar */}
-              <div className="mt-2 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+              {/* Load bar — exposed as a progressbar describing gate capacity load. */}
+              <div
+                role="progressbar"
+                aria-label={`Gate ${id} load ${Math.round(loadPct)}%`}
+                aria-valuenow={Math.round(loadPct)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="mt-2 h-1 bg-white/[0.04] rounded-full overflow-hidden"
+              >
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     loadPct > 80 ? "bg-alert-400" : loadPct > 50 ? "bg-warn-400" : "bg-pulse-400"
@@ -133,10 +145,15 @@ export default function GateGrid({ gates, expanded }) {
 
               {/* Gate control dropdown */}
               {selectedGate === id && (
-                <div className="absolute top-full left-0 right-0 mt-1 z-30 bg-midnight-700 border border-white/10 rounded-xl p-1.5 shadow-2xl animate-fade-in">
+                <div
+                  role="menu"
+                  aria-label={`Set status for gate ${id}`}
+                  className="absolute top-full left-0 right-0 mt-1 z-30 bg-midnight-700 border border-white/10 rounded-xl p-1.5 shadow-2xl animate-fade-in"
+                >
                   {["open", "closed", "restricted", "exit_only"].map((s) => (
                     <button
                       key={s}
+                      role="menuitem"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStatusChange(id, s);

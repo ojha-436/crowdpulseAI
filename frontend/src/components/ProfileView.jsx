@@ -84,8 +84,11 @@ export default function ProfileView() {
       <div className="bg-gradient-to-r from-midnight-800/80 to-midnight-700/60 border border-white/[0.06] rounded-3xl p-6 relative overflow-hidden flex flex-col md:flex-row items-center gap-6">
         <div className="absolute top-0 right-0 w-[200px] h-[200px] rounded-full bg-pulse-500/5 blur-[50px] pointer-events-none" />
 
-        {/* Large Avatar */}
-        <div className="w-20 h-20 rounded-2xl bg-midnight-600 border-2 border-pulse-400/30 flex items-center justify-center text-4xl shrink-0 shadow-lg shadow-pulse-400/5">
+        {/* Large Avatar — decorative emoji. */}
+        <div
+          aria-hidden="true"
+          className="w-20 h-20 rounded-2xl bg-midnight-600 border-2 border-pulse-400/30 flex items-center justify-center text-4xl shrink-0 shadow-lg shadow-pulse-400/5"
+        >
           {avatarEmojis[avatar] || "👤"}
         </div>
 
@@ -110,7 +113,7 @@ export default function ProfileView() {
           onClick={logout}
           className="px-4 py-2 rounded-xl bg-alert-500/10 hover:bg-alert-500/20 border border-alert-500/20 text-alert-400 text-xs font-bold transition-all flex items-center gap-2"
         >
-          <LogOut size={13} />
+          <LogOut size={13} aria-hidden="true" />
           Terminate Session
         </button>
       </div>
@@ -120,7 +123,7 @@ export default function ProfileView() {
         <div className="md:col-span-1 space-y-6">
           <div className="bg-midnight-800/80 backdrop-blur-xl border border-white/[0.04] p-5 rounded-2xl">
             <h3 className="text-xs font-mono font-semibold tracking-wider text-pulse-400 uppercase mb-4 flex items-center gap-2">
-              <Shield size={14} />
+              <Shield size={14} aria-hidden="true" />
               Clearence Audit
             </h3>
 
@@ -135,7 +138,7 @@ export default function ProfileView() {
               <div className="space-y-1">
                 <p className="text-[10px] text-gray-400 font-mono uppercase">System Logins</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <Terminal size={12} className="text-pulse-400" />
+                  <Terminal size={12} className="text-pulse-400" aria-hidden="true" />
                   <span className="text-sm font-mono font-bold text-white">Active</span>
                 </div>
               </div>
@@ -143,7 +146,7 @@ export default function ProfileView() {
               <div className="space-y-1">
                 <p className="text-[10px] text-gray-400 font-mono uppercase">System Activity</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <Award size={12} className="text-cyan-400" />
+                  <Award size={12} className="text-cyan-400" aria-hidden="true" />
                   <span className="text-sm font-mono font-bold text-white">
                     {currentUser.commandsCount} ActionsLogged
                   </span>
@@ -157,20 +160,29 @@ export default function ProfileView() {
         <div className="md:col-span-2">
           <div className="bg-midnight-800/80 backdrop-blur-xl border border-white/[0.04] p-6 rounded-2xl">
             <h3 className="text-base font-bold text-white mb-6 flex items-center gap-2.5">
-              <User size={18} className="text-pulse-400" />
+              <User size={18} className="text-pulse-400" aria-hidden="true" />
               Configure Terminal Profile
             </h3>
 
             {success && (
-              <div className="mb-6 p-3 rounded-xl bg-pulse-500/10 border border-pulse-500/20 text-pulse-400 text-xs flex items-center gap-2 animate-slide-up">
-                <CheckCircle size={14} className="shrink-0" />
+              // Polite status: success confirmation, not urgent.
+              <div
+                role="status"
+                className="mb-6 p-3 rounded-xl bg-pulse-500/10 border border-pulse-500/20 text-pulse-400 text-xs flex items-center gap-2 animate-slide-up"
+              >
+                <CheckCircle size={14} className="shrink-0" aria-hidden="true" />
                 <span>Operator settings successfully committed to local registry.</span>
               </div>
             )}
 
             {error && (
-              <div className="mb-6 p-3 rounded-xl bg-alert-500/10 border border-alert-500/20 text-alert-400 text-xs flex items-center gap-2 animate-slide-up">
-                <Shield size={14} className="shrink-0 animate-pulse" />
+              // Assertive alert: surfaces a failed update immediately.
+              <div
+                role="alert"
+                id="profile-error"
+                className="mb-6 p-3 rounded-xl bg-alert-500/10 border border-alert-500/20 text-alert-400 text-xs flex items-center gap-2 animate-slide-up"
+              >
+                <Shield size={14} className="shrink-0 animate-pulse" aria-hidden="true" />
                 <span>{error}</span>
               </div>
             )}
@@ -219,18 +231,23 @@ export default function ProfileView() {
                 </div>
               </div>
 
-              {/* Avatar Picker */}
+              {/* Avatar Picker — mutually-exclusive choices exposed as a radiogroup. */}
               <div className="space-y-2">
-                <label className="text-[10px] font-mono text-gray-400 tracking-wider uppercase">
+                <span id="avatar-group-label" className="block text-[10px] font-mono text-gray-400 tracking-wider uppercase">
                   Avatar Designation
-                </label>
-                <div className="grid grid-cols-4 gap-3">
+                </span>
+                <div className="grid grid-cols-4 gap-3" role="radiogroup" aria-labelledby="avatar-group-label">
                   {Object.entries(avatarEmojis).map(([key, emoji]) => {
                     const active = avatar === key;
                     return (
                       <button
                         key={key}
                         type="button"
+                        // role="radio" + aria-checked conveys single-select state;
+                        // aria-label names the option since the emoji is decorative.
+                        role="radio"
+                        aria-checked={active}
+                        aria-label={key}
                         onClick={() => setAvatar(key)}
                         disabled={loading}
                         className={`py-3 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
@@ -239,7 +256,7 @@ export default function ProfileView() {
                             : "bg-midnight-700/20 border-white/[0.06] hover:bg-white/[0.04] text-gray-400"
                         }`}
                       >
-                        <span className="text-2xl">{emoji}</span>
+                        <span className="text-2xl" aria-hidden="true">{emoji}</span>
                         <span className="text-[9px] font-mono tracking-wider uppercase">{key}</span>
                       </button>
                     );
@@ -251,7 +268,7 @@ export default function ProfileView() {
 
               <div className="space-y-1.5">
                 <label htmlFor="profile-password" className="text-[10px] font-mono text-gray-400 tracking-wider uppercase flex items-center gap-1.5">
-                  <Key size={11} className="text-gray-400" />
+                  <Key size={11} className="text-gray-400" aria-hidden="true" />
                   Override Password (Leave blank to keep current)
                 </label>
                 <input

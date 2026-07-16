@@ -15,7 +15,8 @@ import React from "react";
  * @returns {React.JSX.Element} The rendered skeleton block.
  */
 function Skeleton({ className = "" }) {
-  return <div className={`animate-pulse rounded-xl bg-white/[0.04] ${className}`} />;
+  // Purely visual placeholder; hidden from assistive tech.
+  return <div aria-hidden="true" className={`animate-pulse rounded-xl bg-white/[0.04] ${className}`} />;
 }
 
 /**
@@ -27,7 +28,14 @@ function Skeleton({ className = "" }) {
  */
 export default function LoadingSkeleton() {
   return (
-    <div className="flex-1 p-6 space-y-6 animate-fade-in">
+    // Announce the loading state; the visual blocks themselves are aria-hidden.
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="flex-1 p-6 space-y-6 animate-fade-in"
+    >
+      <span className="sr-only">Loading dashboard…</span>
       {/* Metric cards skeleton */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (

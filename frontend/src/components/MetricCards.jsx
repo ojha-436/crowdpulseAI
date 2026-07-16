@@ -116,12 +116,20 @@ export default function MetricCards({ state, analysis }) {
               <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">
                 {card.label}
               </span>
-              <Icon size={15} className={`${card.color} opacity-60`} />
+              <Icon size={15} className={`${card.color} opacity-60`} aria-hidden="true" />
             </div>
             <div className={`metric-value ${card.color}`}>{card.value}</div>
             <p className="text-[11px] text-gray-400 mt-1">{card.sub}</p>
             {card.pct !== undefined && (
-              <div className="mt-3 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+              // Progressbar exposes the metric's percentage to assistive tech.
+              <div
+                role="progressbar"
+                aria-label={`${card.label} ${Math.round(Math.min(100, card.pct))}%`}
+                aria-valuenow={Math.round(Math.min(100, card.pct))}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                className="mt-3 h-1 bg-white/[0.04] rounded-full overflow-hidden"
+              >
                 <div
                   className={`h-full rounded-full ${card.barColor} transition-all duration-700`}
                   style={{ width: `${Math.min(100, card.pct)}%` }}

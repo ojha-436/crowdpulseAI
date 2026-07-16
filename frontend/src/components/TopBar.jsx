@@ -71,24 +71,33 @@ export default function TopBar({ state, onOpenAI }) {
     <header className="h-14 bg-midnight-800/50 backdrop-blur-xl border-b border-white/[0.04] flex items-center justify-between px-4 lg:px-6 shrink-0">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Radio size={14} className="text-pulse-400 animate-pulse-glow" />
+          <Radio size={14} className="text-pulse-400 animate-pulse-glow" aria-hidden="true" />
           <span className="text-xs font-mono text-gray-400 hidden sm:block">{state.name}</span>
         </div>
 
-        {/* Match Status */}
-        <div className="relative">
+        {/* Match Status menu */}
+        <div className="relative" onKeyDown={(e) => e.key === "Escape" && setShowStatusMenu(false)}>
           <button
             onClick={() => setShowStatusMenu(!showStatusMenu)}
+            // Menu trigger semantics for assistive tech.
+            aria-haspopup="menu"
+            aria-expanded={showStatusMenu}
+            aria-label={`Match status: ${state.matchStatus.replace("-", " ")}. Change status`}
             className={`status-badge border cursor-pointer ${statusColors[state.matchStatus]}`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" aria-hidden="true" />
             {state.matchStatus.replace("-", " ").toUpperCase()}
           </button>
           {showStatusMenu && (
-            <div className="absolute top-full left-0 mt-2 z-50 bg-midnight-700 border border-white/10 rounded-xl p-1.5 shadow-2xl min-w-[160px] animate-fade-in">
+            <div
+              role="menu"
+              aria-label="Set match status"
+              className="absolute top-full left-0 mt-2 z-50 bg-midnight-700 border border-white/10 rounded-xl p-1.5 shadow-2xl min-w-[160px] animate-fade-in"
+            >
               {["pre-match", "ongoing", "break", "post-match", "emergency"].map((s) => (
                 <button
                   key={s}
+                  role="menuitem"
                   onClick={() => handleStatusChange(s)}
                   className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors capitalize"
                 >
@@ -101,28 +110,29 @@ export default function TopBar({ state, onOpenAI }) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Weather */}
+        {/* Weather — icons are decorative; adjacent text conveys the values. */}
         <div className="hidden md:flex items-center gap-3 text-xs text-gray-400">
           <div className="flex items-center gap-1.5">
-            <WeatherIcon size={14} />
+            <WeatherIcon size={14} aria-hidden="true" />
             <span className="capitalize">{state.weatherCondition?.replace("_", " ")}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Thermometer size={12} />
+            <Thermometer size={12} aria-hidden="true" />
             <span>{state.temperature?.toFixed(1)}°C</span>
           </div>
           <div className="flex items-center gap-1">
-            <Droplets size={12} />
+            <Droplets size={12} aria-hidden="true" />
             <span>{state.humidity?.toFixed(0)}%</span>
           </div>
         </div>
 
-        {/* AI Button */}
+        {/* AI Button — label hidden on mobile, so name it via aria-label. */}
         <button
           onClick={onOpenAI}
+          aria-label="Open AI Command panel"
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pulse-500/20 to-cyan-500/20 border border-pulse-400/20 text-pulse-400 text-xs font-semibold hover:from-pulse-500/30 hover:to-cyan-500/30 transition-all"
         >
-          <Bot size={14} />
+          <Bot size={14} aria-hidden="true" />
           <span className="hidden sm:block">AI Command</span>
         </button>
       </div>

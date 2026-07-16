@@ -66,7 +66,7 @@ export default function IncidentFeed({ incidents, expanded }) {
     <div className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <AlertTriangle size={16} className="text-alert-400" />
+          <AlertTriangle size={16} className="text-alert-400" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-white">Incident Feed</h3>
         </div>
         <span className="text-[10px] font-mono text-gray-400">
@@ -79,7 +79,7 @@ export default function IncidentFeed({ incidents, expanded }) {
       >
         {list.length === 0 && (
           <div className="text-center py-8 text-gray-400 text-sm">
-            <ShieldAlert size={24} className="mx-auto mb-2 opacity-30" />
+            <ShieldAlert size={24} className="mx-auto mb-2 opacity-30" aria-hidden="true" />
             No incidents reported
           </div>
         )}
@@ -100,7 +100,7 @@ export default function IncidentFeed({ incidents, expanded }) {
               }`}
             >
               <div className={`p-2 rounded-lg ${config.bg} shrink-0`}>
-                <Icon size={14} className={config.color} />
+                <Icon size={14} className={config.color} aria-hidden="true" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
@@ -122,7 +122,7 @@ export default function IncidentFeed({ incidents, expanded }) {
                   className="shrink-0 p-1.5 rounded-lg hover:bg-pulse-400/10 text-gray-400 hover:text-pulse-400 transition-colors"
                   title="Resolve"
                 >
-                  <CheckCircle2 size={14} />
+                  <CheckCircle2 size={14} aria-hidden="true" />
                 </button>
               )}
             </div>

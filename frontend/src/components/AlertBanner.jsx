@@ -29,15 +29,21 @@ export default function AlertBanner({ alerts }) {
   const alert = active[0];
 
   return (
-    <div className="mx-4 mt-3 px-4 py-3 rounded-xl bg-alert-400/10 border border-alert-400/20 flex items-center gap-3 animate-fade-in">
-      <AlertTriangle size={16} className="text-alert-400 shrink-0" />
+    // Assertive live region: critical alerts should be announced immediately.
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="mx-4 mt-3 px-4 py-3 rounded-xl bg-alert-400/10 border border-alert-400/20 flex items-center gap-3 animate-fade-in"
+    >
+      <AlertTriangle size={16} className="text-alert-400 shrink-0" aria-hidden="true" />
       <p className="text-xs text-alert-300 flex-1 font-medium">{alert.message}</p>
       <button
         onClick={() => setDismissed((s) => new Set([...s, alert.id]))}
         aria-label="Dismiss alert"
         className="p-1 rounded hover:bg-white/5 text-alert-400/60 hover:text-alert-400 transition-colors shrink-0"
       >
-        <X size={14} />
+        {/* Icon-only button; label provided via aria-label above. */}
+        <X size={14} aria-hidden="true" />
       </button>
     </div>
   );

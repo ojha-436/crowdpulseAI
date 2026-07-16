@@ -52,13 +52,13 @@ export default function ZoneMap({ zones, expanded }) {
     <div className="glass-card p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Map size={16} className="text-warn-400" />
+          <Map size={16} className="text-warn-400" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-white">Zone Density Map</h3>
         </div>
         <div className="flex items-center gap-2">
           {["low", "medium", "high", "critical"].map((r) => (
             <div key={r} className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${riskColors[r].fill}`} />
+              <div className={`w-2 h-2 rounded-full ${riskColors[r].fill}`} aria-hidden="true" />
               <span className="text-[9px] text-gray-400 uppercase">{r}</span>
             </div>
           ))}
@@ -78,15 +78,22 @@ export default function ZoneMap({ zones, expanded }) {
             >
               {zone.riskLevel === "critical" && (
                 <div className="absolute -top-1 -right-1">
-                  <AlertTriangle size={14} className="text-alert-400 animate-pulse" />
+                  <AlertTriangle size={14} className="text-alert-400 animate-pulse" aria-hidden="true" />
                 </div>
               )}
               <h4 className="text-xs font-bold text-white truncate mb-2">{name}</h4>
 
-              {/* Density Ring */}
+              {/* Density Ring — exposed as a progressbar for the zone's density %. */}
               <div className="flex items-center gap-3 mb-2">
-                <div className="relative w-12 h-12">
-                  <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                <div
+                  role="progressbar"
+                  aria-label={`${name} density ${densityPct}%, ${zone.riskLevel} risk`}
+                  aria-valuenow={Number(densityPct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="relative w-12 h-12"
+                >
+                  <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48" aria-hidden="true">
                     <circle
                       cx="24"
                       cy="24"
@@ -133,7 +140,7 @@ export default function ZoneMap({ zones, expanded }) {
               </div>
 
               <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                <ThermometerSun size={10} />
+                <ThermometerSun size={10} aria-hidden="true" />
                 <span>{zone.temperature?.toFixed(1)}°C</span>
                 <span className="mx-1">•</span>
                 <span>{zone.exitRoutes} exits</span>

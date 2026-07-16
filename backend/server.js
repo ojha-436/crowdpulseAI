@@ -29,13 +29,38 @@ if (!process.env.JWT_SECRET) {
 }
 
 /**
- * Generates a signed JWT token for user authentication.
+ * Lifetime of an issued JWT, in milliseconds (8 hours). Tokens carry an `exp`
+ * claim and are rejected once it passes, limiting the blast radius of a leaked token.
+ * @type {number}
+ */
+const TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
+
+/**
+ * Constant-time string comparison to guard signature checks against timing
+ * side-channel attacks. Returns false immediately when lengths differ.
+ * @param {string} a - First value.
+ * @param {string} b - Second value.
+ * @returns {boolean} True if the values are byte-for-byte equal.
+ */
+function safeCompare(a, b) {
+  const bufA = Buffer.from(String(a));
+  const bufB = Buffer.from(String(b));
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * Generates a signed JWT (HS256) for user authentication. Standard `iat`
+ * (issued-at) and `exp` (expiry) claims are always stamped on the payload so
+ * every issued token expires, regardless of what the caller passes.
  * @param {Object} payload - The data to encode in the token.
  * @returns {string} The signed JWT string.
  */
 export function signToken(payload) {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const now = Date.now();
+  const claims = { ...payload, iat: now, exp: now + TOKEN_TTL_MS };
+  const body = Buffer.from(JSON.stringify(claims)).toString("base64url");
   const signature = crypto
     .createHmac("sha256", JWT_SECRET)
     .update(`${header}.${body}`)
@@ -44,19 +69,24 @@ export function signToken(payload) {
 }
 
 /**
- * Verifies and decodes a given JWT token.
+ * Verifies and decodes a given JWT token. Validates structure and signature
+ * (in constant time) and rejects tokens whose `exp` claim has elapsed.
  * @param {string} token - The JWT string to verify.
- * @returns {Object|null} The decoded payload if valid, or null if invalid.
+ * @returns {Object|null} The decoded payload if valid, or null if invalid/expired.
  */
 export function verifyToken(token) {
   try {
     const [header, body, signature] = token.split(".");
+    if (!header || !body || !signature) return null;
     const expectedSignature = crypto
       .createHmac("sha256", JWT_SECRET)
       .update(`${header}.${body}`)
       .digest("base64url");
-    if (signature !== expectedSignature) return null;
-    return JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (!safeCompare(signature, expectedSignature)) return null;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    // Reject expired tokens (exp is epoch-millis stamped by signToken).
+    if (payload.exp && Date.now() > payload.exp) return null;
+    return payload;
   } catch (e) {
     return null;
   }
@@ -103,6 +133,30 @@ const ROLE_CLEARANCE = Object.freeze({
  * @type {string}
  */
 const DEFAULT_ROLE = "Operations Analyst";
+
+/**
+ * The set of roles a client is permitted to request; anything else is rejected
+ * as invalid input before authorization is even considered.
+ * @type {ReadonlyArray<string>}
+ */
+const VALID_ROLES = Object.freeze(Object.keys(ROLE_CLEARANCE));
+
+/**
+ * Maximum accepted lengths for user-supplied string fields. Enforced early so
+ * abusive or malformed payloads are rejected before hitting any business logic.
+ * @type {Readonly<Record<string, number>>}
+ */
+const INPUT_LIMITS = Object.freeze({ USERNAME: 64, EMAIL: 254, MESSAGE: 2000 });
+
+/**
+ * Validates that a value is a non-empty string no longer than maxLength.
+ * @param {*} value - The value to check.
+ * @param {number} maxLength - Inclusive maximum length.
+ * @returns {boolean} True when value is a usable, in-bounds string.
+ */
+function isValidString(value, maxLength) {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
 
 /**
  * Determines whether an identity is permitted to hold a privileged role.
@@ -165,13 +219,57 @@ if (GEMINI_API_KEY) {
 }
 
 // --- Security Middleware ---
-app.use(helmet({ contentSecurityPolicy: false }));
+// Content-Security-Policy is defined explicitly (rather than disabled) to
+// restrict where scripts, styles, fonts, and network calls may originate.
+// The allow-list covers exactly what the SPA needs: Google Fonts and the
+// Firebase Authentication endpoints. Everything else falls back to 'self'.
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // 'unsafe-inline' on styles is required for inline style attributes
+        // (e.g. dynamic progress-bar widths) and Google Fonts stylesheets.
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        // Firebase Auth + Firestore + same-origin API calls.
+        connectSrc: [
+          "'self'",
+          "https://*.googleapis.com",
+          "https://*.firebaseapp.com",
+          "https://identitytoolkit.googleapis.com",
+          "https://securetoken.googleapis.com",
+        ],
+        frameSrc: ["'self'", "https://*.firebaseapp.com"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'self'"],
+      },
+    },
+    // Restrict how much referrer information leaks to third parties.
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    // Opt out of cross-origin embedding of our resources.
+    crossOriginResourcePolicy: { policy: "same-origin" },
+    // Enforce HTTPS for one year, including subdomains.
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+  })
+);
+
+// Disable browser features the app never uses, reducing the attack surface.
+app.use((_req, res, next) => {
+  res.setHeader("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+  next();
+});
+
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(",") || "*" }));
-app.use(express.json({ limit: "2mb" }));
+// Bounded JSON body size mitigates memory-exhaustion via oversized payloads.
+app.use(express.json({ limit: "256kb" }));
 
 /**
- * Rate limiter middleware configuration for API requests.
- * Limits requests to /api/* to 120 per minute per IP.
+ * General API rate limiter. Caps traffic to /api/* at 120 requests per minute
+ * per client IP to blunt scraping and denial-of-service attempts.
  * @type {import('express-rate-limit').RateLimitRequestHandler}
  */
 const limiter = rateLimit({
@@ -182,6 +280,21 @@ const limiter = rateLimit({
   message: { error: "Rate limit exceeded. Please try again later." },
 });
 app.use("/api/", limiter);
+
+/**
+ * Stricter rate limiter dedicated to authentication endpoints. A tighter cap
+ * (20 requests/minute/IP) raises the cost of credential-stuffing and token
+ * brute-force attacks without impacting normal login usage.
+ * @type {import('express-rate-limit').RateLimitRequestHandler}
+ */
+const authLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many authentication attempts. Please try again later." },
+});
+app.use("/api/auth/", authLimiter);
 
 // --- Serve Static Frontend ---
 app.use(express.static(path.join(__dirname, "public")));
@@ -839,8 +952,15 @@ app.get("/api/health", handleHealthCheck);
  */
 app.post("/api/auth/token", (req, res) => {
   const { username, role, email } = req.body;
-  if (!username) {
+  if (!isValidString(username, INPUT_LIMITS.USERNAME)) {
     return res.status(400).json({ error: "Username is required" });
+  }
+  // Reject malformed optional fields rather than silently coercing them.
+  if (email !== undefined && (typeof email !== "string" || email.length > INPUT_LIMITS.EMAIL)) {
+    return res.status(400).json({ error: "Invalid email" });
+  }
+  if (role !== undefined && typeof role !== "string") {
+    return res.status(400).json({ error: "Invalid role" });
   }
 
   // Requested role, defaulting to the standard analyst role when unspecified.
@@ -878,6 +998,11 @@ app.post("/api/auth/token", (req, res) => {
 app.post("/api/auth/verify-role", authMiddleware, (req, res) => {
   const { role: verifiedRole } = req.body;
   const { username, email } = req.user;
+
+  // Only known roles may be requested; unknown values are invalid input (400).
+  if (!VALID_ROLES.includes(verifiedRole)) {
+    return res.status(400).json({ error: "Invalid role" });
+  }
 
   // Unlike the login endpoint, an explicit privilege-escalation request that
   // fails authorization is rejected outright with 403 rather than downgraded.
@@ -1138,7 +1263,8 @@ app.post("/api/stadium/incidents/:incidentId/resolve", authMiddleware, (req, res
 app.post("/api/agent/query", authMiddleware, async (req, res) => {
   const { message } = req.body;
 
-  if (!message) {
+  // Reject empty, non-string, or oversized prompts before calling the model.
+  if (!isValidString(message, INPUT_LIMITS.MESSAGE)) {
     return res.status(400).json({ error: "Message is required" });
   }
 

@@ -65,7 +65,7 @@ export default function CrowdChart({ history, capacity }) {
     <div className="glass-card p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-pulse-400" />
+          <TrendingUp size={16} className="text-pulse-400" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-white">Live Occupancy Trend</h3>
         </div>
         <div className="flex items-center gap-3 text-[10px] font-mono text-gray-400">
@@ -74,7 +74,13 @@ export default function CrowdChart({ history, capacity }) {
         </div>
       </div>
 
-      <div className="h-[220px]">
+      {/* The purely visual chart is summarised with a text alternative so the
+          trend is available without perceiving the graphic. */}
+      <div
+        className="h-[220px]"
+        role="img"
+        aria-label={`Occupancy trend chart. Current occupancy ${data[data.length - 1]?.occupancy?.toLocaleString()} people, ${data[data.length - 1]?.pct}% of ${capacity.toLocaleString()} capacity.`}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
             <defs>

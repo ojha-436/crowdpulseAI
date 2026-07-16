@@ -46,6 +46,43 @@ body {
   }
 }
 
+/*
+ * Accessibility utilities.
+ * .sr-only visually hides content while keeping it available to screen readers.
+ * .sr-only-focusable reveals the element (e.g. the skip link) when it receives
+ * keyboard focus so sighted keyboard users can see and activate it.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.sr-only-focusable:focus,
+.sr-only-focusable:focus-visible {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 1rem;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  border-radius: 0.5rem;
+  background: #38f2b0;
+  color: #0a0e1a;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
 .noise-overlay {
   position: fixed;
   top: 0;
