@@ -1,3 +1,9 @@
+/**
+ * @file AuthContext.jsx
+ * @description Provides the authentication context, hooks, and helpers for user accounts.
+ * Manages Google Sign-In via Firebase and local session state.
+ */
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase.js";
@@ -29,6 +35,15 @@ const DEFAULT_USERS = [
   },
 ];
 
+/**
+ * Context provider that manages authentication state, session persistence,
+ * and user profiles (both local credentials and Google OAuth users via Firebase).
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {React.ReactNode} props.children - Child components to be wrapped.
+ * @returns {React.JSX.Element} The rendered Provider component.
+ */
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
@@ -144,6 +159,14 @@ export function AuthProvider({ children }) {
     return () => unsubscribe();
   }, []);
 
+  /**
+   * Logs in a user using their email or username and password.
+   * Fetches an authentication token from the backend.
+   *
+   * @param {string} emailOrUsername - The user's email address or username.
+   * @param {string} password - The user's password.
+   * @returns {Promise<Object>} A promise resolving to the logged-in user object.
+   */
   const login = (emailOrUsername, password) => {
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
@@ -184,6 +207,14 @@ export function AuthProvider({ children }) {
     });
   };
 
+  /**
+   * Registers a new user with standard credentials and automatically logs them in.
+   *
+   * @param {string} username - The desired username.
+   * @param {string} email - The user's email address.
+   * @param {string} password - The user's password.
+   * @returns {Promise<Object>} A promise resolving to the newly registered user object.
+   */
   const register = (username, email, password) => {
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
@@ -243,55 +274,59 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const updateProfile = (updatedDetails) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        let role = updatedDetails.role || currentUser.role;
-        let clearance = updatedDetails.clearance || currentUser.clearance;
-        let token = currentUser.token;
+  /**
+   * Updates the profile of the current authenticated user.
+   *
+   * @param {Object} updatedDetails - The updated profile fields.
+   * @returns {Promise<Object>} A promise resolving to the updated user object.
+   */
+  const updateProfile = async (updatedDetails) => {
+    let role = updatedDetails.role || currentUser.role;
+    let clearance = updatedDetails.clearance || currentUser.clearance;
+    let token = currentUser.token;
 
-        if (updatedDetails.role && updatedDetails.role !== currentUser.role) {
-          const res = await fetch("/api/auth/verify-role", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${currentUser.token}`,
-            },
-            body: JSON.stringify({ role: updatedDetails.role }),
-          });
+    if (updatedDetails.role && updatedDetails.role !== currentUser.role) {
+      const res = await fetch("/api/auth/verify-role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.token}`,
+        },
+        body: JSON.stringify({ role: updatedDetails.role }),
+      });
 
-          if (!res.ok) {
-            const errData = await res.json();
-            reject(new Error(errData.error || "Failed to verify role on backend"));
-            return;
-          }
-
-          const data = await res.json();
-          role = data.role;
-          clearance = data.clearance;
-          token = data.token;
-        }
-
-        const mergedUser = { ...currentUser, ...updatedDetails, role, clearance, token };
-
-        // Update current session
-        localStorage.setItem("crowdpulse_session", JSON.stringify(mergedUser));
-        setCurrentUser(mergedUser);
-
-        // Update list of users
-        const updatedUsers = users.map((u) =>
-          u.email.toLowerCase() === currentUser.email.toLowerCase() ? mergedUser : u
-        );
-        localStorage.setItem("crowdpulse_users", JSON.stringify(updatedUsers));
-        setUsers(updatedUsers);
-
-        resolve(mergedUser);
-      } catch (err) {
-        reject(err);
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Failed to verify role on backend");
       }
-    });
+
+      const data = await res.json();
+      role = data.role;
+      clearance = data.clearance;
+      token = data.token;
+    }
+
+    const mergedUser = { ...currentUser, ...updatedDetails, role, clearance, token };
+
+    // Update current session
+    localStorage.setItem("crowdpulse_session", JSON.stringify(mergedUser));
+    setCurrentUser(mergedUser);
+
+    // Update list of users
+    const updatedUsers = users.map((u) =>
+      u.email.toLowerCase() === currentUser.email.toLowerCase() ? mergedUser : u
+    );
+    localStorage.setItem("crowdpulse_users", JSON.stringify(updatedUsers));
+    setUsers(updatedUsers);
+
+    return mergedUser;
   };
 
+  /**
+   * Logs out the current user, clearing local session storage and signing out from Firebase.
+   *
+   * @returns {Promise<void>}
+   */
   const logout = async () => {
     try {
       await signOut(auth);
@@ -318,6 +353,12 @@ export function AuthProvider({ children }) {
   );
 }
 
+/**
+ * Custom React hook to access the current authentication context.
+ *
+ * @returns {Object} The authentication context value containing currentUser, login, register, updateProfile, and logout.
+ * @throws {Error} If used outside of an AuthProvider.
+ */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

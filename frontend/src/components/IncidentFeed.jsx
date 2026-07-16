@@ -1,3 +1,8 @@
+/**
+ * @file IncidentFeed.jsx
+ * @description Renders a live feeds of active and resolved incidents with controls to resolve them.
+ */
+
 import React from "react";
 import {
   AlertTriangle,
@@ -25,10 +30,34 @@ const sevBadge = {
   critical: "bg-alert-400/15 text-alert-400",
 };
 
+/**
+ * IncidentFeed Component.
+ * Displays a list of active and resolved stadium incidents.
+ * Allows operator users to resolve active incidents.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Array<Object>} props.incidents - List of incident objects.
+ * @param {string|number} props.incidents[].id - Unique identifier of the incident.
+ * @param {string} props.incidents[].type - Type of incident (e.g., 'medical', 'security').
+ * @param {string} props.incidents[].severity - Severity of the incident (e.g., 'critical', 'high').
+ * @param {number} props.incidents[].timestamp - Epoch timestamp of when the incident occurred.
+ * @param {string} props.incidents[].description - Description of what happened.
+ * @param {string} props.incidents[].zone - Stadium zone where the incident occurred.
+ * @param {string} props.incidents[].status - Current status of the incident ('active' or 'resolved').
+ * @param {boolean} props.expanded - If true, lists all incidents; if false, limits to the first 8.
+ * @returns {React.JSX.Element|null} The rendered incident feed.
+ */
 export default function IncidentFeed({ incidents, expanded }) {
   if (!incidents) return null;
   const list = expanded ? incidents : incidents.slice(0, 8);
 
+  /**
+   * Sends a request to the backend to mark a specific incident as resolved.
+   *
+   * @param {string|number} id - The ID of the incident to resolve.
+   * @returns {Promise<void>}
+   */
   const handleResolve = async (id) => {
     await resolveIncident(id);
   };

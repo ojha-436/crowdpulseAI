@@ -1,3 +1,11 @@
+/**
+ * @file server.js
+ * @description Main entry point for the CrowdPulse AI backend server.
+ * Handles Express server setup, Google Gemini AI integration, real-time stadium simulation,
+ * and exposes REST API endpoints for the frontend application.
+ * @module server
+ */
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -12,8 +20,19 @@ import { getStadiumState, saveStadiumState } from "./db.js";
 
 dotenv.config();
 
+// Secret used to sign JWTs. A hardcoded fallback keeps local/demo runs working
+// out of the box, but production MUST supply its own JWT_SECRET — the warning
+// below makes an insecure default explicit rather than silently accepted.
 const JWT_SECRET = process.env.JWT_SECRET || "crowdpulse-super-secret-key-123456";
+if (!process.env.JWT_SECRET) {
+  console.warn("⚠️  JWT_SECRET is not set — using an insecure default. Set JWT_SECRET in production.");
+}
 
+/**
+ * Generates a signed JWT token for user authentication.
+ * @param {Object} payload - The data to encode in the token.
+ * @returns {string} The signed JWT string.
+ */
 export function signToken(payload) {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -24,6 +43,11 @@ export function signToken(payload) {
   return `${header}.${body}.${signature}`;
 }
 
+/**
+ * Verifies and decodes a given JWT token.
+ * @param {string} token - The JWT string to verify.
+ * @returns {Object|null} The decoded payload if valid, or null if invalid.
+ */
 export function verifyToken(token) {
   try {
     const [header, body, signature] = token.split(".");
@@ -38,6 +62,13 @@ export function verifyToken(token) {
   }
 }
 
+/**
+ * Express middleware to enforce JWT-based authentication.
+ * Attaches the decoded user payload to the request object if successful.
+ * @param {import('express').Request} req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @param {import('express').NextFunction} next - The Express next middleware function.
+ */
 export function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -52,6 +83,64 @@ export function authMiddleware(req, res, next) {
   next();
 }
 
+// --- Role-Based Access Control (RBAC) Configuration ---
+/**
+ * Maps each operational role to its human-readable clearance label.
+ * Higher levels grant broader command authority in the operations center.
+ * Centralised here so the auth endpoints share a single source of truth.
+ * @type {Readonly<Record<string, string>>}
+ */
+const ROLE_CLEARANCE = Object.freeze({
+  "Stadium Director": "Level-5 (Super-Admin)",
+  "Security Chief": "Level-4 (Incident-Cmd)",
+  "Operations Lead": "Level-3 (Tactical-Ops)",
+  "Operations Analyst": "Level-2 (Standard-Write)",
+});
+
+/**
+ * Role assigned when none is requested, or when a request for a privileged
+ * role fails authorization on the credential-only login endpoint.
+ * @type {string}
+ */
+const DEFAULT_ROLE = "Operations Analyst";
+
+/**
+ * Determines whether an identity is permitted to hold a privileged role.
+ *
+ * Elevated roles (Stadium Director, Security Chief) are restricted to a known
+ * allow-list of demo credentials; all non-privileged roles are granted freely.
+ * Email/username are defaulted to empty strings so a missing field never throws.
+ *
+ * @param {string} role - The role being requested.
+ * @param {{ username?: string, email?: string }} identity - Requesting user's identity.
+ * @returns {boolean} True if the identity may hold the requested role.
+ */
+function isRoleAuthorized(role, { username = "", email = "" } = {}) {
+  if (role === "Stadium Director") {
+    return (
+      username === "abhiraj" ||
+      email === "iamabhiraj8825@gmail.com" ||
+      username.includes("google") ||
+      email.includes("google") ||
+      email.includes("@gmail.com")
+    );
+  }
+  if (role === "Security Chief") {
+    return username === "security_chief" || email === "security@crowdpulse.ai";
+  }
+  // Non-privileged roles require no special authorization.
+  return true;
+}
+
+/**
+ * Resolves the clearance label for a role, falling back to the default level.
+ * @param {string} role - The role to look up.
+ * @returns {string} The clearance label.
+ */
+function clearanceForRole(role) {
+  return ROLE_CLEARANCE[role] || ROLE_CLEARANCE[DEFAULT_ROLE];
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -59,7 +148,17 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // --- Google Gemini AI Setup ---
+/**
+ * The Google Gemini AI API key loaded from environment variables.
+ * @type {string}
+ */
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+
+/**
+ * The Google GenAI client instance.
+ * Set to null if the Gemini API key is not configured.
+ * @type {import('@google/genai').GoogleGenAI|null}
+ */
 let ai = null;
 if (GEMINI_API_KEY) {
   ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
@@ -70,6 +169,11 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(",") || "*" }));
 app.use(express.json({ limit: "2mb" }));
 
+/**
+ * Rate limiter middleware configuration for API requests.
+ * Limits requests to /api/* to 120 per minute per IP.
+ * @type {import('express-rate-limit').RateLimitRequestHandler}
+ */
 const limiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 120,
@@ -82,7 +186,34 @@ app.use("/api/", limiter);
 // --- Serve Static Frontend ---
 app.use(express.static(path.join(__dirname, "public")));
 
-// --- In-Memory Data Store (Simulates Firestore for MVP) ---
+// --- Stadium State & Simulation Model ---
+// State is persisted through db.js (Firestore when available, in-memory otherwise)
+// and continuously advanced by the simulation engine below.
+
+/**
+ * Tuning constants for the real-time crowd simulation. Grouped here so the
+ * behaviour of the simulation is discoverable in one place rather than as
+ * magic numbers scattered through simulateTick().
+ * @type {Readonly<Object>}
+ */
+const SIM = Object.freeze({
+  TICK_INTERVAL_MS: 3000, // Wall-clock interval between simulation ticks.
+  MAX_ALERT_HISTORY: 50, // Cap on retained alerts.
+  MAX_INCIDENT_HISTORY: 50, // Cap on retained incidents.
+  MAX_CROWD_HISTORY: 200, // Cap on retained crowd-occupancy data points.
+  INCIDENT_SPAWN_CHANCE: 0.03, // Per-tick probability of a new random incident.
+  WEATHER_CHANGE_EVERY_TICKS: 20, // Weather is re-rolled on this tick cadence.
+  // Zone density thresholds used to classify risk level.
+  DENSITY_CRITICAL: 0.9,
+  DENSITY_HIGH: 0.75,
+  DENSITY_MEDIUM: 0.5,
+});
+
+/**
+ * Generates the initial, baseline state for the stadium.
+ * Contains mock data for gates, zones, weather, and incidents.
+ * @returns {Object} The default stadium state.
+ */
 const getInitialState = () => {
   const state = {
     name: "Narendra Modi Stadium, Ahmedabad",
@@ -159,21 +290,29 @@ const getInitialState = () => {
 
 const stadiumState = getInitialState();
 
+/**
+ * Adds an alert to the stadium state's alert history.
+ * Maintains a maximum history size of 50 alerts.
+ * @param {Object} alert - The alert object to add.
+ */
 function addAlert(alert) {
   stadiumState.alerts.unshift(alert);
-  if (stadiumState.alerts.length > 50) {
-    stadiumState.alerts = stadiumState.alerts.slice(0, 50);
+  if (stadiumState.alerts.length > SIM.MAX_ALERT_HISTORY) {
+    stadiumState.alerts = stadiumState.alerts.slice(0, SIM.MAX_ALERT_HISTORY);
   }
 }
 
 // --- Load state from Firestore on Startup ---
 const dbState = await getStadiumState(stadiumState);
 Object.assign(stadiumState, dbState);
-if (stadiumState.alerts.length > 50) {
-  stadiumState.alerts = stadiumState.alerts.slice(0, 50);
+if (stadiumState.alerts.length > SIM.MAX_ALERT_HISTORY) {
+  stadiumState.alerts = stadiumState.alerts.slice(0, SIM.MAX_ALERT_HISTORY);
 }
 
 // --- Expose reset function ---
+/**
+ * Resets the stadium state to its initial default state and saves it.
+ */
 export function resetStadiumState() {
   const freshState = getInitialState();
   Object.assign(stadiumState, freshState);
@@ -181,13 +320,25 @@ export function resetStadiumState() {
 }
 
 // --- Simulation Engine ---
+/**
+ * Counter for the number of simulation ticks executed.
+ * @type {number}
+ */
 let tickCount = 0;
 
+/**
+ * Main simulation loop tick. Updates crowd flow, zone densities, 
+ * generates random incidents, and triggers weather changes.
+ * Executes periodically to simulate real-time stadium dynamics.
+ */
 function simulateTick() {
+  // Increment global simulation ticks count
   tickCount++;
   const { matchStatus, gates, zones } = stadiumState;
 
-  // Simulate crowd flow based on match status
+  // 1. Calculate crowd flow multiplier based on the current match phase.
+  // Pre-match causes high inward flow (1.2), ongoing has minimal flow (0.1),
+  // halftime break increases flow (0.4), and post-match causes high outward flow (-1.5).
   const flowMultiplier =
     matchStatus === "pre-match"
       ? 1.2
@@ -201,54 +352,73 @@ function simulateTick() {
 
   let totalOccupancy = 0;
 
+  // 2. Iterate through each gate to update queue length, flow rate, and load.
   Object.values(gates).forEach((gate) => {
     if (gate.status === "open") {
+      // Simulate random baseline flow and apply current flow multiplier
       const baseFlow = Math.floor(Math.random() * 80 + 40);
       gate.currentFlow = Math.max(0, Math.floor(baseFlow * Math.abs(flowMultiplier)));
+      
+      // Simulate fluctuations in queue length
       gate.queueLength = Math.max(0, gate.queueLength + Math.floor(Math.random() * 20 - 8));
+      
+      // Update cumulative load for the gate (inward or outward flow)
       gate.currentLoad = Math.min(
         gate.maxCapacity,
         gate.currentLoad + (flowMultiplier > 0 ? gate.currentFlow : -gate.currentFlow)
       );
       gate.currentLoad = Math.max(0, gate.currentLoad);
+      
+      // Calculate randomized average processing time in seconds
       gate.avgProcessingTime = 5 + Math.random() * 10;
     } else {
+      // Non-open gates have no flow passing through
       gate.currentFlow = 0;
     }
   });
 
+  // 3. Iterate through each zone to update occupancies and compute safety/congestion risk levels.
   Object.values(zones).forEach((zone) => {
+    // Generate simulated inflow of fans based on current flow multiplier
     const inflow = Math.floor(Math.random() * 200 * Math.abs(flowMultiplier));
     if (flowMultiplier > 0) {
       zone.currentOccupancy = Math.min(zone.capacity, zone.currentOccupancy + inflow);
     } else {
       zone.currentOccupancy = Math.max(0, zone.currentOccupancy - inflow);
     }
+    
+    // Calculate density as ratio of current occupancy to maximum capacity
     zone.density = zone.currentOccupancy / zone.capacity;
+    
+    // Determine risk level based on standard density thresholds
     zone.riskLevel =
-      zone.density > 0.9
+      zone.density > SIM.DENSITY_CRITICAL
         ? "critical"
-        : zone.density > 0.75
+        : zone.density > SIM.DENSITY_HIGH
           ? "high"
-          : zone.density > 0.5
+          : zone.density > SIM.DENSITY_MEDIUM
             ? "medium"
             : "low";
+            
+    // Update simulated temperature in Celsius
     zone.temperature = 32 + Math.random() * 5;
     totalOccupancy += zone.currentOccupancy;
   });
 
   stadiumState.currentOccupancy = totalOccupancy;
 
-  // Record history
+  // 4. Record current occupancy and tick timestamp to historical data
   stadiumState.crowdHistory.push({
     timestamp: Date.now(),
     occupancy: totalOccupancy,
     tick: tickCount,
   });
-  if (stadiumState.crowdHistory.length > 200) stadiumState.crowdHistory.shift();
+  
+  // Cap history size to prevent memory bloat
+  if (stadiumState.crowdHistory.length > SIM.MAX_CROWD_HISTORY) stadiumState.crowdHistory.shift();
 
-  // Random incidents
-  if (Math.random() < 0.03) {
+  // 5. Randomly generate active incidents to simulate operational anomalies
+  if (Math.random() < SIM.INCIDENT_SPAWN_CHANCE) {
     const incidentTypes = [
       "medical",
       "security",
@@ -258,6 +428,7 @@ function simulateTick() {
     ];
     const severity = ["low", "medium", "high", "critical"];
     const zoneKeys = Object.keys(zones);
+    
     const incident = {
       id: uuidv4(),
       type: incidentTypes[Math.floor(Math.random() * incidentTypes.length)],
@@ -270,21 +441,28 @@ function simulateTick() {
     };
     incident.description = generateIncidentDescription(incident);
     stadiumState.incidents.unshift(incident);
-    if (stadiumState.incidents.length > 50) stadiumState.incidents.pop();
+    
+    // Cap active/recent incidents list size
+    if (stadiumState.incidents.length > SIM.MAX_INCIDENT_HISTORY) stadiumState.incidents.pop();
   }
 
-  // Weather fluctuation
-  if (tickCount % 20 === 0) {
+  // 6. Fluctuate weather conditions periodically (every 20 ticks by default)
+  if (tickCount % SIM.WEATHER_CHANGE_EVERY_TICKS === 0) {
     const conditions = ["clear", "cloudy", "light_rain", "heavy_rain", "storm_warning"];
     stadiumState.weatherCondition = conditions[Math.floor(Math.random() * conditions.length)];
     stadiumState.temperature = 28 + Math.random() * 12;
     stadiumState.humidity = 40 + Math.random() * 50;
   }
 
-  // Save state to Firestore
+  // Save the updated stadium state to db
   saveStadiumState(stadiumState);
 }
 
+/**
+ * Generates a human-readable description for a given incident based on its type and zone.
+ * @param {Object} incident - The incident object containing type and zone.
+ * @returns {string} The formatted description string.
+ */
 function generateIncidentDescription(incident) {
   const descriptions = {
     medical: `Medical assistance required in ${incident.zone}. Possible heat-related illness reported.`,
@@ -296,10 +474,19 @@ function generateIncidentDescription(incident) {
   return descriptions[incident.type] || "Unclassified incident reported.";
 }
 
-// Start simulation
-setInterval(simulateTick, 3000);
+/**
+ * Starts the real-time simulation engine by setting a periodic interval.
+ * Advances the simulation by one tick every SIM.TICK_INTERVAL_MS (3 seconds).
+ * @type {NodeJS.Timeout}
+ */
+const _simulationInterval = setInterval(simulateTick, SIM.TICK_INTERVAL_MS);
 
 // --- Gemini Agentic Tools (Function Calling Definitions) ---
+/**
+ * Gemini Agentic Tools (Function Calling Definitions).
+ * Declares the tool schemas available to the Gemini AI model for executing stadium operations.
+ * @type {Array<Object>}
+ */
 const agentTools = [
   {
     name: "get_gate_status",
@@ -424,6 +611,15 @@ const agentTools = [
 ];
 
 // --- Tool Execution Functions ---
+
+/**
+ * Executes a tool (function call) requested by the AI agent.
+ * Matches the tool name and invokes the corresponding telemetry query or state mutation.
+ *
+ * @param {string} name - The name of the tool function to execute.
+ * @param {Object} args - The arguments passed to the tool function.
+ * @returns {Object} The result of the tool execution, containing queried data or success status.
+ */
 function executeToolCall(name, args) {
   switch (name) {
     case "get_gate_status": {
@@ -584,100 +780,163 @@ function executeToolCall(name, args) {
 
 // --- API Routes ---
 
-// Health check
-app.get("/health", (req, res) => {
+/**
+ * Shared handler function to retrieve the health status of the service.
+ * Used by GET /health and GET /api/health.
+ * 
+ * @param {import('express').Request} _req - The Express request object.
+ * @param {import('express').Response} res - The Express response object.
+ * @returns {void}
+ */
+function handleHealthCheck(_req, res) {
   res.json({ status: "healthy", service: "crowdpulse-ai", timestamp: new Date().toISOString() });
-});
+}
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "healthy", service: "crowdpulse-ai", timestamp: new Date().toISOString() });
-});
+/**
+ * GET /health
+ * 
+ * Purpose: Public health check endpoint for container/hosting monitoring.
+ * Status Codes:
+ *   - 200 OK: Service is healthy.
+ * Response JSON:
+ *   - status {string} - "healthy"
+ *   - service {string} - "crowdpulse-ai"
+ *   - timestamp {string} - ISO timestamp of the response
+ */
+app.get("/health", handleHealthCheck);
+
+/**
+ * GET /api/health
+ * 
+ * Purpose: API namespace health check endpoint.
+ * Status Codes:
+ *   - 200 OK: API service is healthy.
+ * Response JSON:
+ *   - status {string} - "healthy"
+ *   - service {string} - "crowdpulse-ai"
+ *   - timestamp {string} - ISO timestamp of the response
+ */
+app.get("/api/health", handleHealthCheck);
 
 // Auth endpoints
+/**
+ * POST /api/auth/token
+ * 
+ * Purpose: Authenticates a user and issues a signed JWT token.
+ * Request Body Shape:
+ *   - username {string} (required) - User's username.
+ *   - role {string} (optional) - Requested role (e.g. "Stadium Director", "Security Chief").
+ *   - email {string} (optional) - User's email address.
+ * Response JSON (200 OK):
+ *   - token {string} - Signed JWT token containing encoded payload.
+ *   - role {string} - The verified and normalized role assigned by the backend.
+ *   - clearance {string} - The clearance level corresponding to the verified role.
+ * Response JSON (400 Bad Request):
+ *   - error {string} - Error message details.
+ * Status Codes:
+ *   - 200 OK: Authentication successful.
+ *   - 400 Bad Request: Missing required username parameter.
+ */
 app.post("/api/auth/token", (req, res) => {
   const { username, role, email } = req.body;
   if (!username) {
     return res.status(400).json({ error: "Username is required" });
   }
 
-  // Verify or adjust role/clearance based on backend rules
-  let verifiedRole = role || "Operations Analyst";
-
-  if (verifiedRole === "Stadium Director") {
-    const isAuthorized =
-      username === "abhiraj" ||
-      email === "iamabhiraj8825@gmail.com" ||
-      username.includes("google") ||
-      email.includes("google") ||
-      email.includes("@gmail.com");
-
-    if (!isAuthorized) {
-      verifiedRole = "Operations Analyst";
-    }
-  } else if (verifiedRole === "Security Chief") {
-    const isAuthorized = username === "security_chief" || email === "security@crowdpulse.ai";
-    if (!isAuthorized) {
-      verifiedRole = "Operations Analyst";
-    }
+  // Requested role, defaulting to the standard analyst role when unspecified.
+  // Unauthorized requests for a privileged role are silently downgraded to the
+  // default here (rather than rejected) so login always succeeds with least privilege.
+  let verifiedRole = role || DEFAULT_ROLE;
+  if (!isRoleAuthorized(verifiedRole, { username, email })) {
+    verifiedRole = DEFAULT_ROLE;
   }
 
-  const roleClearance = {
-    "Stadium Director": "Level-5 (Super-Admin)",
-    "Security Chief": "Level-4 (Incident-Cmd)",
-    "Operations Lead": "Level-3 (Tactical-Ops)",
-    "Operations Analyst": "Level-2 (Standard-Write)",
-  };
-
-  const clearance = roleClearance[verifiedRole] || "Level-2 (Standard-Write)";
+  const clearance = clearanceForRole(verifiedRole);
   const token = signToken({ username, role: verifiedRole, email, clearance });
   res.json({ token, role: verifiedRole, clearance });
 });
 
+/**
+ * POST /api/auth/verify-role
+ * 
+ * Purpose: Verifies role clearance and issues a new JWT token with updated role if authorized.
+ * Authentication: Bearer JWT token required in Authorization header.
+ * Request Body Shape:
+ *   - role {string} - The target role to verify and assign.
+ * Response JSON (200 OK):
+ *   - success {boolean} - Indicates whether the operation succeeded.
+ *   - role {string} - The verified role.
+ *   - clearance {string} - The clearance Level corresponding to the role.
+ *   - token {string} - New signed JWT token with updated details.
+ * Response JSON (403 Forbidden):
+ *   - error {string} - Error message details.
+ * Status Codes:
+ *   - 200 OK: Role verified and token generated.
+ *   - 401 Unauthorized: Invalid or missing token.
+ *   - 403 Forbidden: Access denied for unauthorized role assignment.
+ */
 app.post("/api/auth/verify-role", authMiddleware, (req, res) => {
-  const { role } = req.body;
+  const { role: verifiedRole } = req.body;
   const { username, email } = req.user;
 
-  let verifiedRole = role;
-
-  if (verifiedRole === "Stadium Director") {
-    const isAuthorized =
-      username === "abhiraj" ||
-      email === "iamabhiraj8825@gmail.com" ||
-      username.includes("google") ||
-      email.includes("google") ||
-      email.includes("@gmail.com");
-
-    if (!isAuthorized) {
-      return res.status(403).json({ error: "Access denied: Unauthorized role assignment" });
-    }
-  } else if (verifiedRole === "Security Chief") {
-    const isAuthorized = username === "security_chief" || email === "security@crowdpulse.ai";
-    if (!isAuthorized) {
-      return res.status(403).json({ error: "Access denied: Unauthorized role assignment" });
-    }
+  // Unlike the login endpoint, an explicit privilege-escalation request that
+  // fails authorization is rejected outright with 403 rather than downgraded.
+  if (!isRoleAuthorized(verifiedRole, { username, email })) {
+    return res.status(403).json({ error: "Access denied: Unauthorized role assignment" });
   }
 
-  const roleClearance = {
-    "Stadium Director": "Level-5 (Super-Admin)",
-    "Security Chief": "Level-4 (Incident-Cmd)",
-    "Operations Lead": "Level-3 (Tactical-Ops)",
-    "Operations Analyst": "Level-2 (Standard-Write)",
-  };
-
-  const clearance = roleClearance[verifiedRole] || "Level-2 (Standard-Write)";
+  const clearance = clearanceForRole(verifiedRole);
   const newToken = signToken({ username, role: verifiedRole, email, clearance });
 
   res.json({ success: true, role: verifiedRole, clearance, token: newToken });
 });
 
 // Reset simulation state
-app.post("/api/stadium/reset", authMiddleware, (req, res) => {
+/**
+ * POST /api/stadium/reset
+ * 
+ * Purpose: Resets the entire stadium simulation state to default baseline values.
+ * Authentication: Bearer JWT token required in Authorization header.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - success {boolean} - Indicates whether the reset succeeded.
+ *   - message {string} - Success feedback message.
+ * Status Codes:
+ *   - 200 OK: Reset complete.
+ *   - 401 Unauthorized: Invalid or missing token.
+ */
+app.post("/api/stadium/reset", authMiddleware, (_req, res) => {
   resetStadiumState();
   res.json({ success: true, message: "Simulation state reset successfully." });
 });
 
 // Get full stadium state
-app.get("/api/stadium/state", (req, res) => {
+/**
+ * GET /api/stadium/state
+ * 
+ * Purpose: Retrieves the full current stadium state excluding full history, but with a recent history subset.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - name {string} - Name of the stadium.
+ *   - capacity {number} - Total capacity of the stadium.
+ *   - currentOccupancy {number} - Current occupancy count.
+ *   - utilizationPercent {string} - Occupancy percentage formatted as string.
+ *   - matchStatus {string} - Current match status.
+ *   - weatherCondition {string} - Current weather description.
+ *   - temperature {number} - Temperature in Celsius.
+ *   - humidity {number} - Humidity percentage.
+ *   - gates {Object} - Map of gate states.
+ *   - zones {Object} - Map of zone states.
+ *   - incidents {Array} - List of active/recent incidents.
+ *   - alerts {Array} - List of system alerts.
+ *   - routingDecisions {Array} - List of routing decisions.
+ *   - activeIncidents {number} - Count of current active incidents.
+ *   - crowdHistory {Array} - Recent 60 data points of crowd history.
+ * Status Codes:
+ *   - 200 OK: Successfully retrieved stadium state.
+ */
+app.get("/api/stadium/state", (_req, res) => {
   const { crowdHistory: _, ...stateWithoutHistory } = stadiumState;
   res.json({
     ...stateWithoutHistory,
@@ -689,26 +948,87 @@ app.get("/api/stadium/state", (req, res) => {
 });
 
 // Get gates
-app.get("/api/stadium/gates", (req, res) => {
+/**
+ * GET /api/stadium/gates
+ * 
+ * Purpose: Retrieves only the current gates state.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - gates {Object} - Map of gate IDs to their current status, queue length, flow, and details.
+ * Status Codes:
+ *   - 200 OK: Successfully retrieved gates status.
+ */
+app.get("/api/stadium/gates", (_req, res) => {
   res.json({ gates: stadiumState.gates });
 });
 
 // Get zones
-app.get("/api/stadium/zones", (req, res) => {
+/**
+ * GET /api/stadium/zones
+ * 
+ * Purpose: Retrieves only the current zones state.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - zones {Object} - Map of zone names to their capacity, occupancy, density, and risk level.
+ * Status Codes:
+ *   - 200 OK: Successfully retrieved zones status.
+ */
+app.get("/api/stadium/zones", (_req, res) => {
   res.json({ zones: stadiumState.zones });
 });
 
 // Get incidents
-app.get("/api/stadium/incidents", (req, res) => {
+/**
+ * GET /api/stadium/incidents
+ * 
+ * Purpose: Retrieves the most recent 20 incidents.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - incidents {Array} - Array of recent incident objects.
+ * Status Codes:
+ *   - 200 OK: Successfully retrieved incidents.
+ */
+app.get("/api/stadium/incidents", (_req, res) => {
   res.json({ incidents: stadiumState.incidents.slice(0, 20) });
 });
 
 // Get alerts
-app.get("/api/stadium/alerts", (req, res) => {
+/**
+ * GET /api/stadium/alerts
+ * 
+ * Purpose: Retrieves the most recent 30 system alerts.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - alerts {Array} - Array of recent system alerts.
+ * Status Codes:
+ *   - 200 OK: Successfully retrieved alerts.
+ */
+app.get("/api/stadium/alerts", (_req, res) => {
   res.json({ alerts: stadiumState.alerts.slice(0, 30) });
 });
 
 // Update match status
+/**
+ * POST /api/stadium/match-status
+ * 
+ * Purpose: Updates the match status and triggers an alert.
+ * Authentication: Bearer JWT token required in Authorization header.
+ * Request Body Shape:
+ *   - status {string} - The new match status ("pre-match", "ongoing", "break", "post-match", "emergency").
+ * Response JSON (200 OK):
+ *   - success {boolean} - True if operation succeeded.
+ *   - matchStatus {string} - The updated match status.
+ * Response JSON (400 Bad Request):
+ *   - error {string} - Error message details.
+ * Status Codes:
+ *   - 200 OK: Status updated successfully.
+ *   - 400 Bad Request: Invalid or unsupported match status value.
+ *   - 401 Unauthorized: Invalid or missing token.
+ */
 app.post("/api/stadium/match-status", authMiddleware, (req, res) => {
   const { status } = req.body;
   const validStatuses = ["pre-match", "ongoing", "break", "post-match", "emergency"];
@@ -728,6 +1048,26 @@ app.post("/api/stadium/match-status", authMiddleware, (req, res) => {
 });
 
 // Manual gate control
+/**
+ * POST /api/stadium/gate/:gateId
+ * 
+ * Purpose: Manually overrides the status of a specific gate.
+ * Authentication: Bearer JWT token required in Authorization header.
+ * Request Parameters:
+ *   - gateId {string} - The ID of the gate to control.
+ * Request Body Shape:
+ *   - status {string} - The new gate status ("open", "closed", "restricted", "exit_only").
+ * Response JSON (200 OK):
+ *   - success {boolean} - True if operation succeeded.
+ *   - gate {Object} - The updated gate object.
+ * Response JSON (400 Bad Request / 404 Not Found):
+ *   - error {string} - Error message details.
+ * Status Codes:
+ *   - 200 OK: Gate status updated successfully.
+ *   - 400 Bad Request: Invalid status value.
+ *   - 401 Unauthorized: Invalid or missing token.
+ *   - 404 Not Found: Gate ID does not exist.
+ */
 app.post("/api/stadium/gate/:gateId", authMiddleware, (req, res) => {
   const { gateId } = req.params;
   const { status } = req.body;
@@ -747,6 +1087,24 @@ app.post("/api/stadium/gate/:gateId", authMiddleware, (req, res) => {
 });
 
 // Resolve incident
+/**
+ * POST /api/stadium/incidents/:incidentId/resolve
+ * 
+ * Purpose: Marks a specific active incident as resolved.
+ * Authentication: Bearer JWT token required in Authorization header.
+ * Request Parameters:
+ *   - incidentId {string} - The ID of the incident to resolve.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - success {boolean} - True if operation succeeded.
+ *   - incident {Object} - The updated and resolved incident object.
+ * Response JSON (404 Not Found):
+ *   - error {string} - Error message details.
+ * Status Codes:
+ *   - 200 OK: Incident resolved successfully.
+ *   - 401 Unauthorized: Invalid or missing token.
+ *   - 404 Not Found: Incident ID does not exist.
+ */
 app.post("/api/stadium/incidents/:incidentId/resolve", authMiddleware, (req, res) => {
   const incident = stadiumState.incidents.find((i) => i.id === req.params.incidentId);
   if (!incident) return res.status(404).json({ error: "Incident not found" });
@@ -756,6 +1114,27 @@ app.post("/api/stadium/incidents/:incidentId/resolve", authMiddleware, (req, res
 });
 
 // --- AI Agent Endpoint (Gemini with Function Calling) ---
+/**
+ * POST /api/agent/query
+ * 
+ * Purpose: Query the AI Agent (Gemini) about stadium status or command options.
+ * Authentication: Bearer JWT token required in Authorization header.
+ * Request Body Shape:
+ *   - message {string} - The question or command for the AI agent.
+ * Response JSON (200 OK):
+ *   - response {string} - Text response generated by Gemini.
+ *   - toolsUsed {Array} - List of tool calls triggered during execution.
+ *   - timestamp {number} - Epoch millisecond timestamp of the execution.
+ * Response JSON (400 Bad Request / 500 Internal Server Error):
+ *   - error {string} - Error description.
+ *   - details {string} - Detailed error message (for 500 errors).
+ *   - fallback {string} - A static markdown fallback response (for 500/unconfigured Gemini errors).
+ * Status Codes:
+ *   - 200 OK: AI agent successfully processed query.
+ *   - 400 Bad Request: Missing query message.
+ *   - 401 Unauthorized: Invalid or missing token.
+ *   - 500 Internal Server Error: API or model execution failed (includes static fallback in response).
+ */
 app.post("/api/agent/query", authMiddleware, async (req, res) => {
   const { message } = req.body;
 
@@ -810,10 +1189,12 @@ Be decisive, data-driven, and proactive. When you detect risks, recommend specif
     let candidate = response.candidates?.[0];
     let parts = candidate?.content?.parts || [];
 
-    // Process function calls
+    // Process any function calls (tool executions) requested by the AI model
     const functionCalls = parts.filter((p) => p.functionCall);
     if (functionCalls.length > 0) {
       const toolOutputs = [];
+      
+      // Iterate through each requested tool call and execute it locally
       for (const fc of functionCalls) {
         const result = executeToolCall(fc.functionCall.name, fc.functionCall.args || {});
         toolOutputs.push({
@@ -824,7 +1205,7 @@ Be decisive, data-driven, and proactive. When you detect risks, recommend specif
         toolResults.push({ tool: fc.functionCall.name, result });
       }
 
-      // Second call with tool results
+      // Structure the execution results into functionResponse parts for the model
       const functionResponses = functionCalls.map((fc, i) => ({
         functionResponse: {
           name: fc.functionCall.name,
@@ -832,6 +1213,10 @@ Be decisive, data-driven, and proactive. When you detect risks, recommend specif
         },
       }));
 
+      // Make a follow-up call to the model, passing the entire conversation history:
+      // 1. Original user query
+      // 2. Model's initial response (containing the function calls)
+      // 3. The actual function response outputs
       const followUp = await ai.models.generateContent({
         model: "gemini-2.0-flash",
         contents: [
@@ -868,7 +1253,23 @@ Be decisive, data-driven, and proactive. When you detect risks, recommend specif
 });
 
 // --- AI Auto-Analysis Endpoint ---
-app.get("/api/agent/auto-analyze", async (req, res) => {
+/**
+ * GET /api/agent/auto-analyze
+ * 
+ * Purpose: Scans stadium state to produce risk assessment and recommended actions.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Response JSON (200 OK):
+ *   - overallRisk {string} - Evaluated risk level ("low", "medium", "high").
+ *   - criticalZones {Array} - List of zones exceeding density thresholds.
+ *   - congestedGates {Array} - List of gates with long queues.
+ *   - activeIncidentCount {number} - Number of current active incidents.
+ *   - recommendations {Array} - List of action items.
+ *   - timestamp {number} - Epoch millisecond timestamp of the analysis.
+ * Status Codes:
+ *   - 200 OK: Analysis completed successfully.
+ */
+app.get("/api/agent/auto-analyze", async (_req, res) => {
   const criticalZones = Object.entries(stadiumState.zones)
     .filter(([_, z]) => z.riskLevel === "critical" || z.riskLevel === "high")
     .map(([name, z]) => `${name}: ${(z.density * 100).toFixed(0)}% density (${z.riskLevel})`);
@@ -914,7 +1315,14 @@ app.get("/api/agent/auto-analyze", async (req, res) => {
   res.json(analysis);
 });
 
-// Fallback response when Gemini is unavailable
+/**
+ * Generates a mock/fallback response when the Gemini AI API is unavailable.
+ * Parses user input for keywords related to gates, zones, or emergencies and
+ * formats a response using live stadiumState data.
+ *
+ * @param {string} message - The raw text query from the user.
+ * @returns {string} The formatted fallback response.
+ */
 function generateFallbackResponse(message) {
   const lowerMsg = message.toLowerCase();
   if (lowerMsg.includes("gate") || lowerMsg.includes("entry")) {
@@ -937,7 +1345,16 @@ function generateFallbackResponse(message) {
 }
 
 // SPA fallback
-app.get("*", (req, res) => {
+/**
+ * GET * (Fallback Route)
+ * 
+ * Purpose: Catch-all route serving the Single Page Application (SPA) index.html for client-side routing.
+ * Request Parameters: None.
+ * Request Body Shape: None.
+ * Status Codes:
+ *   - 200 OK: Success, serves the HTML page.
+ */
+app.get("*", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 

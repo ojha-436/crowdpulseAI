@@ -1,9 +1,30 @@
+/**
+ * @file LoadingSkeleton.jsx
+ * @description Renders loading skeleton placeholders for the dashboard telemetry views.
+ */
+
 import React from "react";
 
+/**
+ * Skeleton Component.
+ * Helper component that renders a pulse-animated placeholder block for loading states.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {string} [props.className] - Additional CSS class names to apply layout styling.
+ * @returns {React.JSX.Element} The rendered skeleton block.
+ */
 function Skeleton({ className = "" }) {
   return <div className={`animate-pulse rounded-xl bg-white/[0.04] ${className}`} />;
 }
 
+/**
+ * LoadingSkeleton Component.
+ * Renders a full page layout skeleton structure while the dashboard telemetry is fetching.
+ *
+ * @component
+ * @returns {React.JSX.Element} The rendered loading skeleton.
+ */
 export default function LoadingSkeleton() {
   return (
     <div className="flex-1 p-6 space-y-6 animate-fade-in">

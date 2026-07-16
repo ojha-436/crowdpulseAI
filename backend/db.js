@@ -1,19 +1,32 @@
 import { Firestore } from "@google-cloud/firestore";
 
+/**
+ * The Firestore database instance. Will be null if Firestore is not initialized/disabled.
+ * @type {import('@google-cloud/firestore').Firestore|null}
+ */
 let db = null;
+
+/**
+ * Flag indicating whether Firestore is active and successfully initialized.
+ * @type {boolean}
+ */
 let useFirestore = false;
 
-// We will keep a local backup in memory to serve immediately in case of read failures or when Firestore is disabled
+/**
+ * Local in-memory backup state of the stadium to serve immediately in case of read failures or when Firestore is disabled.
+ * @type {Object|null}
+ */
 let localMemoryState = null;
 
+// Resolve the target GCP project from the environment, falling back to the
+// deployment default. On Cloud Run the client also picks up credentials
+// automatically from the runtime service account.
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || "promptwar-501405";
+
 try {
-  // Try to initialize Firestore with the active project crowdpulseai-497205
-  // It automatically picks up credentials when running on Cloud Run!
-  db = new Firestore({
-    projectId: process.env.GOOGLE_CLOUD_PROJECT || "promptwar-501405",
-  });
+  db = new Firestore({ projectId: PROJECT_ID });
   useFirestore = true;
-  console.log("🔥 Firestore successfully initialized for project crowdpulseai-497205.");
+  console.log(`🔥 Firestore successfully initialized for project ${PROJECT_ID}.`);
 } catch (error) {
   console.warn(
     "⚠️ Firestore client initialization failed. Falling back to In-Memory mode.",
@@ -22,6 +35,10 @@ try {
   useFirestore = false;
 }
 
+/**
+ * The Firestore document path used to store the stadium state.
+ * @type {string}
+ */
 const DOC_PATH = "stadiums/NarendraModiStadium";
 
 /**
@@ -80,7 +97,9 @@ export async function saveStadiumState(state) {
 
   try {
     const docRef = db.doc(DOC_PATH);
-    // Asynchronous write to Firestore to keep API responses super fast
+    // Merge-write so partial updates never clobber unrelated fields. Callers
+    // typically invoke this without awaiting, keeping API responses fast while
+    // persistence completes in the background.
     await docRef.set(localMemoryState, { merge: true });
   } catch (error) {
     console.warn("⚠️ Error writing stadium state to Firestore:", error.message);

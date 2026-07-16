@@ -1,3 +1,10 @@
+/**
+ * @file App.jsx
+ * @description Root component for the CrowdPulse frontend application.
+ * Manages global state, authentication context, and primary routing/layout.
+ * Uses lazy loading for performance optimization.
+ */
+
 import React, { useState, lazy, Suspense } from "react";
 import { useStadiumData, useAutoAnalysis } from "./hooks/useStadiumData.js";
 import Sidebar from "./components/Sidebar.jsx";
@@ -18,6 +25,11 @@ const AICommandPanel = lazy(() => import("./components/AICommandPanel.jsx"));
 const AuthPage = lazy(() => import("./components/AuthPage.jsx"));
 const ProfileView = lazy(() => import("./components/ProfileView.jsx"));
 
+/**
+ * Main application layout and routing controller.
+ * Handles the sidebar, top navigation, and main content area swapping based on activeView.
+ * @returns {JSX.Element} The main application UI structure.
+ */
 function MainApp() {
   const { currentUser, loading: authLoading } = useAuth();
   const { state, loading, error } = useStadiumData(3000);
@@ -90,6 +102,11 @@ function MainApp() {
   );
 }
 
+/**
+ * The top-level component that wraps the app with necessary providers.
+ * Provides the AuthContext to the rest of the application.
+ * @returns {JSX.Element} The fully wrapped React application.
+ */
 export default function App() {
   return (
     <AuthProvider>

@@ -1,7 +1,17 @@
+/**
+ * @file GateGrid.jsx
+ * @description Provides the Gate Control Panel interface for active monitoring and state management
+ * of stadium ingress/egress gates.
+ */
+
 import React, { useState } from "react";
-import { DoorOpen, Users, Clock, ChevronDown, Zap } from "lucide-react";
+import { DoorOpen, Users, Clock, Zap } from "lucide-react";
 import { updateGateStatus } from "../hooks/useStadiumData.js";
 
+/**
+ * Styling mappings for each gate state.
+ * @type {Object<string, {bg: string, text: string, dot: string}>}
+ */
 const statusStyles = {
   open: { bg: "bg-pulse-400/10", text: "text-pulse-400", dot: "bg-pulse-400" },
   closed: { bg: "bg-alert-400/10", text: "text-alert-400", dot: "bg-alert-400" },
@@ -9,12 +19,30 @@ const statusStyles = {
   exit_only: { bg: "bg-cyan-400/10", text: "text-cyan-400", dot: "bg-cyan-400" },
 };
 
+/**
+ * GateGrid component.
+ * Renders a grid of gates displaying their status, flow rate, queue length, and wait time.
+ * Provides controls to change the status of each individual gate.
+ * 
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Object} props.gates - Object containing the status and telemetry of each gate.
+ * @param {boolean} props.expanded - Whether the gate grid should render in an expanded layout.
+ * @returns {React.ReactElement|null} The GateGrid component.
+ */
 export default function GateGrid({ gates, expanded }) {
   const [selectedGate, setSelectedGate] = useState(null);
   if (!gates) return null;
 
   const gateEntries = Object.entries(gates);
 
+  /**
+   * Triggers the update of a gate's status on the backend.
+   *
+   * @param {string|number} gateId - The unique identifier of the gate.
+   * @param {string} newStatus - The new status to be applied to the gate.
+   * @returns {Promise<void>}
+   */
   const handleStatusChange = async (gateId, newStatus) => {
     await updateGateStatus(gateId, newStatus);
     setSelectedGate(null);

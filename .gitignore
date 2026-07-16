@@ -22,3 +22,8 @@ npm-debug.log*
 # Portable python binaries
 temp_python/
 .gemini/
+
+# AI agent orchestration workspace & scratch artifacts (not part of the app)
+.agents/
+progress.md
+add_comments.js

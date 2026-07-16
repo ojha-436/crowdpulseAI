@@ -9,3 +9,6 @@ frontend/dist/
 .env
 backend/.env
 .gemini/
+.agents/
+progress.md
+add_comments.js

@@ -1,7 +1,20 @@
+/**
+ * @file AuthPage.jsx
+ * @description Provides the user authentication interface for the CrowdPulse AI Command Center.
+ * Handles user login and registration forms with validation.
+ */
+
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { Activity, Mail, Lock, User, Shield, AlertCircle } from "lucide-react";
+import { Activity, Mail, Lock, User, AlertCircle } from "lucide-react";
 
+/**
+ * AuthPage component.
+ * Displays the login or registration forms, manages form input states, and triggers auth transitions.
+ * 
+ * @component
+ * @returns {React.ReactElement} The AuthPage layout.
+ */
 export default function AuthPage() {
   const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
@@ -16,6 +29,11 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  /**
+   * Handles form submission for registration or login.
+   * 
+   * @param {React.FormEvent} e - The form submission event.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
@@ -42,13 +60,6 @@ export default function AuthPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickLogin = (demoEmail) => {
-    setEmail(demoEmail);
-    setPassword("password123");
-    setIsLogin(true);
-    setError(null);
   };
 
   return (

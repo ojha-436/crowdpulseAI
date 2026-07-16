@@ -1,6 +1,28 @@
+/**
+ * @file MetricCards.jsx
+ * @description Renders a grid of metrics panels summarizing live occupancy, active gates, incidents, and risk.
+ */
+
 import React from "react";
 import { Users, DoorOpen, AlertTriangle, ShieldCheck, TrendingUp, Gauge } from "lucide-react";
 
+/**
+ * MetricCards Component.
+ * Displays a grid of six essential stadium telemetry metrics:
+ * Total Occupancy, Active Gates, Active Incidents, Avg Gate Queue, Risk Level, and Flow Rate.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Object} props.state - The current stadium state telemetry.
+ * @param {number} props.state.currentOccupancy - The current headcount inside the stadium.
+ * @param {number} props.state.capacity - The stadium's maximum seating/standing capacity.
+ * @param {Object} props.state.gates - The gates dictionary object.
+ * @param {Array<Object>} props.state.incidents - List of live incidents.
+ * @param {Object} [props.analysis] - AI automated analysis data.
+ * @param {string} [props.analysis.overallRisk] - AI-determined overall safety risk level (e.g., 'low', 'medium', 'high').
+ * @param {Array<string>} [props.analysis.criticalZones] - List of zones flagged as critical.
+ * @returns {React.JSX.Element|null} The rendered grid of metric cards.
+ */
 export default function MetricCards({ state, analysis }) {
   if (!state) return null;
 

@@ -1,6 +1,24 @@
+/**
+ * @file AlertBanner.jsx
+ * @description Renders critical active alert banner notifications at the top of the dashboard interface.
+ */
+
 import React, { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
+/**
+ * AlertBanner Component.
+ * Displays critical active alert notifications at the top of the interface.
+ * Allows dismissing alerts on a per-session basis.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Array<Object>} props.alerts - Array of alert objects to display.
+ * @param {string|number} props.alerts[].id - Unique identifier of the alert.
+ * @param {string} props.alerts[].severity - Severity level of the alert (e.g., 'critical', 'warning').
+ * @param {string} props.alerts[].message - Notification message content.
+ * @returns {React.JSX.Element|null} The rendered alert banner, or null if no critical alerts.
+ */
 export default function AlertBanner({ alerts }) {
   const [dismissed, setDismissed] = useState(new Set());
 

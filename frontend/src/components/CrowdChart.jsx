@@ -1,3 +1,8 @@
+/**
+ * @file CrowdChart.jsx
+ * @description Renders a live crowd occupancy area chart over time using Recharts.
+ */
+
 import React from "react";
 import {
   AreaChart,
@@ -11,6 +16,17 @@ import {
 } from "recharts";
 import { TrendingUp } from "lucide-react";
 
+/**
+ * CrowdChart Component.
+ * Renders an Area chart representing the live crowd occupancy over time.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Array<Object>} props.history - Array of historical telemetry snapshots.
+ * @param {number} props.history[].occupancy - Occupancy headcount at a given snapshot.
+ * @param {number} props.capacity - Maximum capacity of the stadium.
+ * @returns {React.JSX.Element|null} The rendered crowd chart component.
+ */
 export default function CrowdChart({ history, capacity }) {
   if (!history || history.length === 0) return null;
 
@@ -20,6 +36,16 @@ export default function CrowdChart({ history, capacity }) {
     pct: ((h.occupancy / capacity) * 100).toFixed(1),
   }));
 
+  /**
+   * CustomTooltip Component.
+   * Renders details about a data point when hovering over the chart area.
+   *
+   * @component
+   * @param {Object} props - Tooltip props provided by Recharts.
+   * @param {boolean} props.active - If true, the tooltip is active and visible.
+   * @param {Array<Object>} props.payload - The data payload for the hovered point.
+   * @returns {React.JSX.Element|null} The custom tooltip element.
+   */
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;

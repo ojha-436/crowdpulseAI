@@ -1,3 +1,8 @@
+/**
+ * @file ZoneMap.jsx
+ * @description Renders a safety density map of the stadium zones with radial status rings.
+ */
+
 import React from "react";
 import { Map, AlertTriangle, ThermometerSun } from "lucide-react";
 
@@ -28,6 +33,17 @@ const riskColors = {
   },
 };
 
+/**
+ * ZoneMap Component.
+ * Displays density and telemetry (temperature, risk level, occupancy, exits) for each stadium zone.
+ * Uses a grid of cards with radial progress rings indicating percentage density.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Object} props.zones - Dictionary of zone details.
+ * @param {boolean} props.expanded - If true, displays the zone map in a wider multi-column layout.
+ * @returns {React.JSX.Element|null} The rendered zone density map component.
+ */
 export default function ZoneMap({ zones, expanded }) {
   if (!zones) return null;
   const zoneEntries = Object.entries(zones);

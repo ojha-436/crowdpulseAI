@@ -1,3 +1,9 @@
+/**
+ * @file TopBar.jsx
+ * @description Renders the top telemetry and control bar of the command center.
+ * Displays match status controls, weather conditions, and includes the trigger for the AI Command Panel.
+ */
+
 import React, { useState } from "react";
 import {
   Cloud,
@@ -11,6 +17,10 @@ import {
 } from "lucide-react";
 import { updateMatchStatus } from "../hooks/useStadiumData.js";
 
+/**
+ * Mapping of weather conditions to Lucide icons.
+ * @type {Object<string, React.ComponentType>}
+ */
 const weatherIcons = {
   clear: Sun,
   cloudy: Cloud,
@@ -19,6 +29,10 @@ const weatherIcons = {
   storm_warning: CloudLightning,
 };
 
+/**
+ * Mapping of match status to color classes.
+ * @type {Object<string, string>}
+ */
 const statusColors = {
   "pre-match": "bg-cyan-400/15 text-cyan-400 border-cyan-400/20",
   ongoing: "bg-pulse-400/15 text-pulse-400 border-pulse-400/20",
@@ -27,12 +41,27 @@ const statusColors = {
   emergency: "bg-alert-400/15 text-alert-400 border-alert-400/20",
 };
 
-export default function TopBar({ state, analysis, onOpenAI }) {
+/**
+ * TopBar component.
+ * 
+ * @component
+ * @param {Object} props - Component properties.
+ * @param {Object} props.state - Current stadium and match state object.
+ * @param {Function} props.onOpenAI - Callback function when the AI Command Panel button is clicked.
+ * @returns {React.ReactElement|null} The TopBar component layout.
+ */
+export default function TopBar({ state, onOpenAI }) {
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   if (!state) return null;
 
   const WeatherIcon = weatherIcons[state.weatherCondition] || Sun;
 
+  /**
+   * Handles updating the match status on the backend.
+   *
+   * @param {string} status - The new match status to be applied.
+   * @returns {Promise<void>}
+   */
   const handleStatusChange = async (status) => {
     await updateMatchStatus(status);
     setShowStatusMenu(false);

@@ -1,3 +1,8 @@
+/**
+ * @file ProfileView.jsx
+ * @description Provides the User Profile settings and Clearance audit page layout.
+ */
+
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { User, Shield, Key, CheckCircle, LogOut, Terminal, Award } from "lucide-react";
@@ -16,6 +21,14 @@ const roleClearance = {
   "Operations Analyst": "Level-2 (Standard-Write)",
 };
 
+/**
+ * ProfileView Component.
+ * Displays current user profile configuration settings, clearance level audit, and session statistics.
+ * Allows user operators to update their display name, designation role, avatar, and password.
+ *
+ * @component
+ * @returns {React.JSX.Element|null} The rendered profile configuration view.
+ */
 export default function ProfileView() {
   const { currentUser, updateProfile, logout } = useAuth();
   const [displayName, setDisplayName] = useState(currentUser?.displayName || "");
@@ -28,6 +41,13 @@ export default function ProfileView() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Handles submission of the profile updates form.
+   * Compiles the modifications, triggers updateProfile on the AuthContext, and manages visual feedback.
+   *
+   * @param {React.FormEvent} e - The form submission event.
+   * @returns {Promise<void>}
+   */
   const handleUpdate = async (e) => {
     e.preventDefault();
     setSuccess(false);

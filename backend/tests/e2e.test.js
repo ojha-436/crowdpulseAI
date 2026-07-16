@@ -1,3 +1,9 @@
+/**
+ * @file e2e.test.js
+ * @description Comprehensive End-to-End integration tests for the CrowdPulse AI backend.
+ * Tests health checks, authentication, stadium telemetry mutations, simulation behavior, and AI advisor flows.
+ */
+
 import { test, describe, before, beforeEach } from "node:test";
 import assert from "node:assert";
 
@@ -7,6 +13,13 @@ const BASE_URL = `http://localhost:${PORT}`;
 const originalFetch = globalThis.fetch;
 let authToken = "";
 
+/**
+ * Helper to fetch a signed JWT authentication token for API authorization.
+ *
+ * @async
+ * @function getAuthToken
+ * @returns {Promise<string>} The JWT authorization token, or empty string.
+ */
 async function getAuthToken() {
   if (authToken) return authToken;
   try {
@@ -30,6 +43,14 @@ async function getAuthToken() {
   return "";
 }
 
+/**
+ * Overrides global fetch with automatic JWT Authorization header injection.
+ * Simplified auth helper for automated API test client.
+ *
+ * @param {string|URL} url - Request target URL.
+ * @param {Object} [options={}] - Request configuration options.
+ * @returns {Promise<Response>} The fetch HTTP response.
+ */
 globalThis.fetch = async (url, options = {}) => {
   if (typeof url === "string" && url.includes("/api/auth/token")) {
     return originalFetch(url, options);

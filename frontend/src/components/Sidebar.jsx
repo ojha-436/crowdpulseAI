@@ -1,3 +1,8 @@
+/**
+ * @file Sidebar.jsx
+ * @description Provides the navigation sidebar component containing menu views and active profile summary.
+ */
+
 import React from "react";
 import { LayoutDashboard, DoorOpen, Map, AlertTriangle, Bot, Activity } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -17,6 +22,17 @@ const avatarEmojis = {
   google: "🌐",
 };
 
+/**
+ * Sidebar Component.
+ * Renders the primary navigation sidebar for the CrowdPulse command portal.
+ * Handles switches between different views (Command Center, Gate Control, Zone Monitor, Incidents, AI Agent, Profile).
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {string} props.activeView - The currently active view identifier.
+ * @param {Function} props.setActiveView - Callback function to update the active view.
+ * @returns {React.JSX.Element} The rendered navigation sidebar.
+ */
 export default function Sidebar({ activeView, setActiveView }) {
   const { currentUser } = useAuth();
 

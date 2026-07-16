@@ -1,8 +1,24 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getAnalytics } from "firebase/analytics";
+/**
+ * @file firebase.js
+ * @description Configures and initializes Firebase services for the CrowdPulse frontend application.
+ * Currently initializes the core Firebase App and Firebase Authentication service.
+ */
 
-// --- Firebase Web App Configuration ---
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+
+/**
+ * Firebase Web App Configuration options.
+ * Includes credentials and identifiers for the Firebase project.
+ * @type {Object}
+ * @property {string} apiKey - The application API key.
+ * @property {string} authDomain - The authentication domain.
+ * @property {string} projectId - The Firebase project identifier.
+ * @property {string} storageBucket - The storage bucket name.
+ * @property {string} messagingSenderId - The sender ID for cloud messaging.
+ * @property {string} appId - The unique Firebase application identifier.
+ * @property {string} measurementId - The Google Analytics measurement identifier.
+ */
 const firebaseConfig = {
   apiKey: "AIzaSyCC_sAXnoVICulVd-INPfEQpoJXf6vQVSQ",
   authDomain: "crowdpulseai-497205.firebaseapp.com",
@@ -16,18 +32,9 @@ const firebaseConfig = {
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Analytics
-export const analytics = getAnalytics(app);
-
-// Initialize Firebase Authentication
+/**
+ * The initialized Firebase Authentication service instance.
+ * @type {import('firebase/auth').Auth}
+ */
 export const auth = getAuth(app);
 
-// Initialize Google Auth Provider
-export const googleProvider = new GoogleAuthProvider();
-
-// Custom configurations for Google Sign-In
-googleProvider.setCustomParameters({
-  prompt: "select_account", // Forces the account chooser to appear every time
-});
-
-export default app;

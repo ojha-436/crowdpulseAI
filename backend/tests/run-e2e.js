@@ -1,3 +1,9 @@
+/**
+ * @file run-e2e.js
+ * @description Orchestrates the end-to-end (E2E) testing process by mocking the express-rate-limit library,
+ * spawning the test server, executing the test suite, and restoring original dependency code afterwards.
+ */
+
 import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +39,14 @@ export function rateLimit(options = {}) {
 export default rateLimit;
 `;
 
+/**
+ * Main E2E runner entry point.
+ * Temporarily overrides express-rate-limit, boots the server, runs tests, and cleans up.
+ * 
+ * @async
+ * @function main
+ * @returns {Promise<void>}
+ */
 async function main() {
   // Backup and Mock Rate Limiter
   if (existsSync(rateLimitPath)) {

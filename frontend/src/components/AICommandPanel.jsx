@@ -34,7 +34,18 @@ const QUICK_ACTIONS = [
   },
 ];
 
-export default function AICommandPanel({ onClose, overlay, embedded }) {
+/**
+ * AICommandPanel Component.
+ * Renders an AI command center interface for stadium staff to interact with an AI agent.
+ *
+ * @component
+ * @param {Object} props - The component props.
+ * @param {Function} props.onClose - Callback function triggered when closing the panel.
+ * @param {boolean} props.overlay - If true, displays the panel as a right-hand sidebar overlay with backdrop.
+ * @param {boolean} [props._embedded] - Optional flag indicating if the panel is embedded layout-style (unused).
+ * @returns {React.JSX.Element} The rendered AI Command Panel.
+ */
+export default function AICommandPanel({ onClose, overlay, _embedded }) {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
@@ -229,10 +240,19 @@ export default function AICommandPanel({ onClose, overlay, embedded }) {
   );
 }
 
+/**
+ * Helper function to parse and format text messages with basic markdown-like syntax.
+ * Converts bold markers and bullet points to styled HTML paragraphs.
+ *
+ * @param {string} text - The raw text message content.
+ * @returns {React.ReactNode[]|string} An array of formatted JSX elements, or empty string.
+ */
 function formatMessage(text) {
   if (!text) return "";
-  // Basic markdown-ish formatting
+  
+  // Split the message by newline character to process each line individually
   return text.split("\n").map((line, i) => {
+    // 1. Check if the line is entirely styled as bold (surrounded by **)
     if (line.startsWith("**") && line.endsWith("**")) {
       return (
         <p key={i} className="font-bold text-white mb-1">
@@ -240,6 +260,8 @@ function formatMessage(text) {
         </p>
       );
     }
+    
+    // 2. Check if the line represents a bullet list item (starting with '- ' or '• ')
     if (line.startsWith("- ") || line.startsWith("• ")) {
       return (
         <p key={i} className="ml-3 before:content-['›'] before:mr-2 before:text-pulse-400">
@@ -247,12 +269,17 @@ function formatMessage(text) {
         </p>
       );
     }
+    
+    // 3. For empty lines, render a line break
     if (line.trim() === "") return <br key={i} />;
-    // Handle inline bold
+    
+    // 4. Handle inline bold patterns (e.g. "Some text **bold** more text")
+    // The regex splits the string while keeping the separator (bold text) in the resulting array
     const parts = line.split(/(\*\*[^*]+\*\*)/g);
     return (
       <p key={i} className="mb-0.5">
         {parts.map((part, j) =>
+          // If the part is wrapped in **, strip the asterisks and render as bold text
           part.startsWith("**") && part.endsWith("**") ? (
             <strong key={j} className="text-white font-semibold">
               {part.slice(2, -2)}
