@@ -39,3 +39,37 @@ Configure and prepare the application for deployment to Vercel.
 - [ ] **Testing**: A functional test suite exists and all tests pass.
 - [ ] **Efficiency**: Performance metrics (e.g., Lighthouse performance score) are 98 or higher.
 - [ ] **Deployment**: The application builds successfully (e.g., `npm run build`) and generates Vercel-ready assets without errors.
+
+## Follow-up — 2026-07-16T15:12:42+05:30
+
+# Teamwork Project Prompt — Draft
+
+> Status: Launched
+> Goal: Craft prompt → get user approval → delegate to teamwork_preview
+
+Refactor and optimize the existing codebase at `d:\Hack2skill\crowdpulse` to maximize evaluation parameters, primarily focusing on improving the **Code Quality** score (currently 86/100) by adding comprehensive comments and docstrings. Finally, redeploy the application to Google Cloud Platform.
+
+Working directory: d:\Hack2skill\crowdpulse
+Integrity mode: development
+
+## Requirements
+
+### R1. Code Quality Optimization
+The agent team must aggressively optimize the codebase to improve the Code Quality score to approach 100/100. This includes refactoring logic, restructuring files, and removing dead code as deemed necessary by the agent team.
+
+### R2. Documentation and Remarks
+Add comprehensive comments, remarks, and JSDoc/docstrings throughout the codebase (frontend and backend) to maximize transparency and accessibility.
+
+### R3. Deployment
+Redeploy the application to Google Cloud Platform (GCP) using the existing configuration files (`app.yaml`, `cloudbuild.yaml`, or `Dockerfile`).
+
+## Acceptance Criteria
+
+### Code Quality
+- [ ] All major functions, components, and API endpoints have clear, descriptive comments or docstrings.
+- [ ] Dead code, unused variables, and redundant imports are removed.
+- [ ] If applicable, linting (`npm run lint`) passes successfully.
+
+### Deployment
+- [ ] The application successfully builds and deploys to Google Cloud Platform without errors.
+
