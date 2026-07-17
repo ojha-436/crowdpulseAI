@@ -50,10 +50,12 @@ try {
 }
 
 /**
- * The Firestore document path used to store the stadium state.
+ * The Firestore document path used to store the stadium state. Versioned by
+ * venue so a re-theme (or a change to the state's shape) seeds a fresh document
+ * on startup rather than inheriting stale keys from a prior schema via merge.
  * @type {string}
  */
-const DOC_PATH = "stadiums/NarendraModiStadium";
+const DOC_PATH = "stadiums/fifa2026-metlife";
 
 /**
  * Loads the stadium state from Firestore, falling back to the in-memory copy
