@@ -10,6 +10,7 @@ import {
   JWT_SECRET,
   TOKEN_TTL_MS,
   ROLE_CLEARANCE,
+  ROLE_RANK,
   DEFAULT_ROLE,
   PRIVILEGED_ROLE_ALLOWLIST,
 } from "./config.js";
@@ -93,6 +94,25 @@ export function authMiddleware(req, res, next) {
   }
   req.user = decoded;
   next();
+}
+
+/**
+ * Express middleware factory enforcing a minimum role clearance on a route.
+ * Must be mounted after {@link authMiddleware}, which populates `req.user`.
+ * Requests whose role ranks below `minRank` are rejected with 403, so
+ * privileged mutations require an appropriately-cleared operator rather than
+ * merely any valid token.
+ * @param {number} minRank - Minimum {@link ROLE_RANK} value required to proceed.
+ * @returns {import('express').RequestHandler} The clearance-guard middleware.
+ */
+export function requireClearance(minRank) {
+  return (req, res, next) => {
+    const rank = ROLE_RANK[req.user?.role] || 0;
+    if (rank < minRank) {
+      return res.status(403).json({ error: "Forbidden: insufficient clearance for this action" });
+    }
+    next();
+  };
 }
 
 /**

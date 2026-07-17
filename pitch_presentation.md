@@ -6,7 +6,7 @@ Welcome to your official pitch presentation deck! This guide is designed specifi
 
 ## 💡 Quick Presentation Strategy for Beginners
 1.  **Keep it Confident**: You don't need to explain line-by-line code. Focus on *what* the system does, *why* it is designed this way, and *how* it helps stadium operations.
-2.  **Highlight Google Stack**: Emphasize that the solution is built on **Google Cloud Run**, **Google Cloud Firestore**, and **Google Gemini 2.0 Flash**.
+2.  **Highlight Google Stack**: Emphasize that the solution is built on **Google Cloud Run**, **Google Cloud Firestore**, and **Google Gemini 2.5 Flash**.
 3.  **Live Demo is King**: When showing the live URL, click the **"One-Click Demo Login"** buttons to log in instantly. It shows immediate value with zero login friction.
 
 ---
@@ -30,14 +30,14 @@ Welcome to your official pitch presentation deck! This guide is designed specifi
 *   **Slide Title**: The Problem & The Agentic AI Solution
 *   **Bullet Points on Screen**:
     *   *The Bottleneck*: Traditional stadiums use manual, slow crowd control systems.
-    *   *The Solution*: **Agentic AI Orchestration** powered by **Google Gemini 2.0 Flash**.
+    *   *The Solution*: **Agentic AI Orchestration** powered by **Google Gemini 2.5 Flash**.
     *   *Multi-Turn Reasoner*: Gemini actively monitors stadium telemetry and makes operational decisions autonomously.
     *   *8 Structured Tools*: Gate tracking, zone density analysis, dynamic rerouting, emergency protocols, and weather monitoring.
 
 🗣️ **Speaking Script**:
 > *"Massive crowds at cricket stadiums create dangerous bottlenecks and security risks. Traditional management relies on manual processes that cannot adapt instantly.*
 > 
-> *CrowdPulse AI solves this by placing **Google Gemini 2.0 Flash** at the center of operations. Using Gemini's advanced **Function Calling** capabilities, the AI acts as an autonomous orchestrator. It doesn't just display data—it actively analyzes gate loads and crowd density, and uses 8 built-in operational tools to reroute crowds and manage gates dynamically in real-time."*
+> *CrowdPulse AI solves this by placing **Google Gemini 2.5 Flash** at the center of operations. Using Gemini's advanced **Function Calling** capabilities, the AI acts as an autonomous orchestrator. It doesn't just display data—it actively analyzes gate loads and crowd density, and uses 8 built-in operational tools to reroute crowds and manage gates dynamically in real-time."*
 
 ---
 

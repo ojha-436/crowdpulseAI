@@ -16,8 +16,8 @@ import { getStadiumState, saveStadiumState } from "../db.js";
  */
 export const getInitialState = () => {
   const state = {
-    name: "Narendra Modi Stadium, Ahmedabad",
-    capacity: 132000,
+    name: "MetLife Stadium — New York/New Jersey",
+    capacity: 82500,
     currentOccupancy: 0,
     matchStatus: "pre-match",
     weatherCondition: "clear",
@@ -63,16 +63,18 @@ export const getInitialState = () => {
 
   const zoneNames = [
     "North Stand",
-    "East Pavilion",
+    "East Stand",
     "South Stand",
-    "West Pavilion",
+    "West Stand",
     "VIP Lounge",
     "Corporate Box",
     "General-Upper",
     "General-Lower",
   ];
   zoneNames.forEach((name) => {
-    const cap = name.includes("VIP") ? 5000 : name.includes("Corporate") ? 3000 : 18000;
+    // Per-zone capacities roughly sum to the stadium capacity so utilization
+    // stays realistic (<=100%). VIP/Corporate are smaller premium areas.
+    const cap = name.includes("VIP") ? 4000 : name.includes("Corporate") ? 3500 : 12500;
     state.zones[name] = {
       id: name,
       capacity: cap,

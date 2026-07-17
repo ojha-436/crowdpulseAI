@@ -18,12 +18,19 @@ import {
   isRoleAuthorized,
   clearanceForRole,
   authMiddleware,
+  requireClearance,
 } from "../src/auth.js";
-import { executeToolCall, generateFallbackResponse, agentTools } from "../src/ai.js";
+import {
+  executeToolCall,
+  generateFallbackResponse,
+  agentTools,
+  buildSystemPrompt,
+} from "../src/ai.js";
 import { generateIncidentDescription } from "../src/simulation.js";
 import { getInitialState, addAlert, stadiumState } from "../src/state.js";
 import {
   ROLE_CLEARANCE,
+  ROLE_RANK,
   VALID_ROLES,
   SIM,
   DEFAULT_ROLE,
@@ -136,6 +143,42 @@ describe("auth — helpers", () => {
     assert.strictEqual(nextCalled, true);
     assert.strictEqual(req.user.username, "u");
   });
+
+  test("requireClearance enforces a minimum role rank", () => {
+    const makeRes = () => ({
+      code: 0,
+      body: null,
+      status(c) {
+        this.code = c;
+        return this;
+      },
+      json(b) {
+        this.body = b;
+        return this;
+      },
+    });
+
+    const guard = requireClearance(ROLE_RANK["Operations Lead"]);
+
+    // Under-cleared: an Operations Analyst (rank 2) is blocked with 403.
+    const lowRes = makeRes();
+    guard({ user: { role: "Operations Analyst" } }, lowRes, () =>
+      assert.fail("next should not run for an under-cleared role"),
+    );
+    assert.strictEqual(lowRes.code, 403);
+
+    // Missing role is treated as rank 0 and blocked.
+    const noneRes = makeRes();
+    guard({ user: {} }, noneRes, () => assert.fail("next should not run without a role"));
+    assert.strictEqual(noneRes.code, 403);
+
+    // Sufficiently-cleared: a Stadium Director (rank 5) passes through.
+    let nextCalled = false;
+    guard({ user: { role: "Stadium Director" } }, makeRes(), () => {
+      nextCalled = true;
+    });
+    assert.strictEqual(nextCalled, true);
+  });
 });
 
 describe("ai — tool execution (read-only) and fallback", () => {
@@ -176,6 +219,18 @@ describe("ai — tool execution (read-only) and fallback", () => {
       assert.ok(tool.name && tool.description && tool.parameters);
     }
   });
+
+  test("buildSystemPrompt is FIFA-themed and honors the requested language", () => {
+    const state = getInitialState();
+    const english = buildSystemPrompt(state);
+    assert.match(english, /FIFA World Cup 2026/);
+    assert.match(english, /in English/);
+    // A non-default language instruction is injected verbatim.
+    const spanish = buildSystemPrompt(state, "Spanish");
+    assert.match(spanish, /in Spanish/);
+    // Fan-facing assistance is part of the assistant's remit.
+    assert.match(english, /[Ff]ans/);
+  });
 });
 
 describe("simulation & state", () => {
@@ -192,7 +247,7 @@ describe("simulation & state", () => {
     const s = getInitialState();
     assert.strictEqual(Object.keys(s.gates).length, 12);
     assert.strictEqual(Object.keys(s.zones).length, 8);
-    assert.strictEqual(s.capacity, 132000);
+    assert.strictEqual(s.capacity, 82500);
   });
 
   test("addAlert prepends and caps history at the configured maximum", () => {

@@ -22,10 +22,16 @@ export const ai = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) :
 /**
  * Builds the system prompt for a Gemini agent query using live stadium state.
  * @param {Object} state - The current stadium state.
+ * @param {string} [languageName="English"] - Human-readable language the reply
+ *   must be written in (enables multilingual fan/staff assistance).
  * @returns {string} The formatted system instruction string.
  */
-export function buildSystemPrompt(state) {
-  return `You are CrowdPulse AI, an intelligent stadium operations command center AI assistant for the "${state.name}" cricket stadium (capacity: ${state.capacity}).
+export function buildSystemPrompt(state, languageName = "English") {
+  return `You are CrowdPulse AI, the operations command-center assistant for "${state.name}" during a FIFA World Cup 2026 football (soccer) match (capacity: ${state.capacity}).
+
+You support two audiences:
+- Operations staff, organizers, and volunteers: monitor and control stadium systems.
+- Fans: answer questions about wayfinding/navigation, gate entry, accessibility services, and safety.
 
 Current State:
 - Match Status: ${state.matchStatus}
@@ -40,7 +46,9 @@ You have access to tools to monitor and control stadium operations. Use them pro
 4. Optimize ticket-to-gate assignments
 5. Monitor weather impacts on operations
 
-Be decisive, data-driven, and proactive. When you detect risks, recommend specific actions. Format responses clearly with actionable insights. Use tools to gather data before making recommendations.`;
+Be decisive, data-driven, and proactive. When you detect risks, recommend specific actions. Format responses clearly with actionable insights. Use tools to gather data before making recommendations.
+
+IMPORTANT: Write your entire response to the user in ${languageName}. Keep tool names and data identifiers unchanged.`;
 }
 
 // --- Gemini Agentic Tools (Function Calling Definitions) ---
@@ -311,9 +319,9 @@ export function executeToolCall(name, args) {
     case "assign_ticket_gate": {
       const directionMap = {
         "North Stand": "North",
-        "East Pavilion": "East",
+        "East Stand": "East",
         "South Stand": "South",
-        "West Pavilion": "West",
+        "West Stand": "West",
         "VIP Lounge": "West",
         "Corporate Box": "East",
         "General-Upper": "North",

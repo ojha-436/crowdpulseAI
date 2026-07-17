@@ -28,9 +28,20 @@ stadium state.
   behind an allow-list; every other identity is granted the least-privilege
   default role. The `/api/auth/verify-role` endpoint returns **403** on an
   unauthorized privilege-escalation attempt.
+* Mutating endpoints enforce **tiered clearance** via `requireClearance()`:
+  simulation reset requires Stadium Director, gate and match-status changes
+  require Operations Lead or above; an under-cleared token receives **403** — a
+  valid token alone is not sufficient for a privileged action (`ROLE_RANK`).
 * `JWT_SECRET` is never committed; a startup warning fires if the insecure
   development default is used, and the production value lives only in the Cloud
   Run service environment.
+* **Demo vs production login.** `/api/auth/token` issues a least-privilege token
+  from a claimed identity to power the one-click judge demo. Set
+  `DEMO_LOGIN_ENABLED=false` in production to disable credential-free issuance;
+  identities should then be established from a verified Firebase ID token. The
+  JWT is a deliberately minimal, dependency-free HS256 implementation
+  (constant-time verify, `exp` enforced, tamper-tested); adopting the vetted
+  `jose` library is the recommended production hardening step.
 
 ## Input validation
 
@@ -77,7 +88,7 @@ stadium state.
 
 | Risk | Control |
 |---|---|
-| A01 Broken Access Control | JWT verification + RBAC allow-list + 403 on escalation |
+| A01 Broken Access Control | JWT verification + RBAC allow-list + tiered clearance on mutations + 403 on escalation |
 | A02 Cryptographic Failures | HS256 signing, constant-time compare, TLS via Cloud Run |
 | A03 Injection | Input validation, fixed enums, structured tool calls, JSON-only |
 | A04 Insecure Design | Least-privilege default role; server-side system prompt |
@@ -91,7 +102,8 @@ stadium state.
 ## Exercised by tests
 
 * `backend/tests/e2e.test.js` — Tier 5/6: missing/invalid/expired/tampered
-  tokens (401), privilege escalation (403), input validation (400/422),
-  security headers, body-size limit (413), rate-limit headers.
+  tokens (401), privilege escalation + insufficient clearance (403), input
+  validation (400/422), security headers, body-size limit (413), rate-limit headers.
 * `backend/tests/unit.test.js` — JWT sign/verify/expiry, constant-time compare,
-  RBAC helpers, input validation, and `authMiddleware` directly.
+  RBAC helpers, `requireClearance` rank enforcement, input validation, and
+  `authMiddleware` directly.

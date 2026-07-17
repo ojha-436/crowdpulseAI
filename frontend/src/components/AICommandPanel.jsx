@@ -2,6 +2,22 @@ import React, { useState, useRef, useEffect } from "react";
 import { Bot, Send, X, Sparkles, Loader2, Wrench } from "lucide-react";
 import { sendAgentQuery } from "../hooks/useStadiumData.js";
 
+/**
+ * Languages the assistant can reply in (mirrors the backend SUPPORTED_LANGUAGES
+ * allow-list). Labels are shown in each language's own script for clarity.
+ * @type {Array<{code: string, label: string}>}
+ */
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
+  { code: "pt", label: "Português" },
+  { code: "de", label: "Deutsch" },
+  { code: "ar", label: "العربية" },
+  { code: "hi", label: "हिन्दी" },
+  { code: "ja", label: "日本語" },
+];
+
 const QUICK_ACTIONS = [
   {
     label: "Full Status Report",
@@ -50,11 +66,12 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
     {
       role: "assistant",
       content:
-        "**CrowdPulse AI Command Center active.** I have real-time access to all stadium systems — gates, zones, crowd sensors, weather, and incident feeds. I can analyze conditions, reroute crowds, trigger emergency protocols, and optimize operations.\n\nWhat would you like me to do?",
+        "**CrowdPulse AI Command Center active.** I have real-time access to all stadium systems — gates, zones, crowd sensors, weather, and incident feeds. I can analyze conditions, reroute crowds, trigger emergency protocols, and optimize operations — and I can help fans with navigation, gate entry, and accessibility.\n\nPick a language below and tell me what you need.",
       tools: [],
     },
   ]);
   const [input, setInput] = useState("");
+  const [language, setLanguage] = useState("en");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -76,7 +93,7 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
     setLoading(true);
 
     try {
-      const result = await sendAgentQuery(msg);
+      const result = await sendAgentQuery(msg, language);
       setMessages((prev) => [
         ...prev,
         {
@@ -114,15 +131,34 @@ export default function AICommandPanel({ onClose, overlay, _embedded }) {
             <div>
               <h3 className="text-sm font-bold text-white">AI Command Agent</h3>
               <p className="text-[10px] text-pulse-400 font-mono">
-                Gemini 2.0 Flash • Agentic Mode
+                Gemini 2.5 Flash • Multilingual Agentic Mode
               </p>
             </div>
           </div>
-          {overlay && (
-            <button onClick={onClose} aria-label="Close AI Command Panel" className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
-              <X size={16} aria-hidden="true" />
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Response-language selector — enables multilingual fan/staff help. */}
+            <label htmlFor="ai-language" className="sr-only">
+              AI response language
+            </label>
+            <select
+              id="ai-language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              aria-label="AI response language"
+              className="bg-midnight-900/60 border border-white/10 rounded-lg text-[11px] text-gray-300 px-2 py-1 outline-none focus:border-pulse-400/40 cursor-pointer"
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+            {overlay && (
+              <button onClick={onClose} aria-label="Close AI Command Panel" className="p-2 rounded-lg hover:bg-white/5 text-gray-400">
+                <X size={16} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Quick Actions */}

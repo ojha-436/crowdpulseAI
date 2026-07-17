@@ -35,6 +35,15 @@ if (!process.env.JWT_SECRET) {
 }
 
 /**
+ * Whether the credential-free demo token endpoint is enabled. Defaults to true
+ * so the one-click judge demo works. Set DEMO_LOGIN_ENABLED=false in production
+ * to disable issuing tokens without a verified identity (see docs/SECURITY.md).
+ * @type {boolean}
+ */
+export const DEMO_LOGIN_ENABLED =
+  (process.env.DEMO_LOGIN_ENABLED ?? "true").toLowerCase() !== "false";
+
+/**
  * Lifetime of an issued JWT, in milliseconds (8 hours). Tokens carry an `exp`
  * claim and are rejected once it passes, limiting the blast radius of a leaked token.
  * @type {number}
@@ -54,6 +63,32 @@ export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
  * @type {string}
  */
 export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+/**
+ * Languages the AI assistant can respond in, for multilingual fan and staff
+ * assistance during an international tournament. Keys are BCP-47-style codes
+ * accepted from the client; values are the human-readable names injected into
+ * the Gemini system prompt. Gemini is natively multilingual, so this is an
+ * allow-list rather than a translation table.
+ * @type {Readonly<Record<string, string>>}
+ */
+export const SUPPORTED_LANGUAGES = Object.freeze({
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+  pt: "Portuguese",
+  de: "German",
+  ar: "Arabic",
+  hi: "Hindi",
+  ja: "Japanese",
+});
+
+/**
+ * Default response language used when the client omits or requests an
+ * unsupported language code.
+ * @type {string}
+ */
+export const DEFAULT_LANGUAGE = "en";
 
 /**
  * Allowed CORS origins. Parsed from a comma-separated ALLOWED_ORIGINS env var,
@@ -102,6 +137,19 @@ export const ROLE_CLEARANCE = Object.freeze({
   "Security Chief": "Level-4 (Incident-Cmd)",
   "Operations Lead": "Level-3 (Tactical-Ops)",
   "Operations Analyst": "Level-2 (Standard-Write)",
+});
+
+/**
+ * Numeric clearance rank per role, used by requireClearance() to gate
+ * privileged mutations. Higher rank = broader authority. Kept alongside
+ * ROLE_CLEARANCE so labels and ranks share one source of truth.
+ * @type {Readonly<Record<string, number>>}
+ */
+export const ROLE_RANK = Object.freeze({
+  "Stadium Director": 5,
+  "Security Chief": 4,
+  "Operations Lead": 3,
+  "Operations Analyst": 2,
 });
 
 /**
@@ -164,6 +212,10 @@ export const PRIVILEGED_ROLE_ALLOWLIST = Object.freeze({
  */
 export const SIM = Object.freeze({
   TICK_INTERVAL_MS: 3000, // Wall-clock interval between simulation ticks.
+  // Persist simulation state to Firestore only every Nth tick (not every tick),
+  // cutting steady-state writes ~10x. Mutations still persist immediately, so
+  // durability of user actions is unaffected; only routine sim drift is batched.
+  PERSIST_EVERY_TICKS: 10,
   MAX_ALERT_HISTORY: 50, // Cap on retained alerts.
   MAX_INCIDENT_HISTORY: 50, // Cap on retained incidents.
   MAX_CROWD_HISTORY: 200, // Cap on retained crowd-occupancy data points.

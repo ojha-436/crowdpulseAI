@@ -5,7 +5,7 @@
  */
 
 import express from "express";
-import { INPUT_LIMITS, DEFAULT_ROLE, VALID_ROLES } from "../config.js";
+import { INPUT_LIMITS, DEFAULT_ROLE, VALID_ROLES, DEMO_LOGIN_ENABLED } from "../config.js";
 import {
   authMiddleware,
   isValidString,
@@ -35,6 +35,12 @@ const router = express.Router();
  *   - 400 Bad Request: Missing required username parameter.
  */
 router.post("/api/auth/token", (req, res) => {
+  // In production, credential-free token issuance is disabled; identities must
+  // be established out-of-band (e.g. a verified Firebase ID token). The demo
+  // flow keeps this open so judges can sign in with one click.
+  if (!DEMO_LOGIN_ENABLED) {
+    return res.status(403).json({ error: "Demo login disabled; a verified identity is required" });
+  }
   const { username, role, email } = req.body;
   if (!isValidString(username, INPUT_LIMITS.USERNAME)) {
     return res.status(400).json({ error: "Username is required" });

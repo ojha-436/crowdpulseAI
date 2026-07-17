@@ -227,13 +227,15 @@ export function useAutoAnalysis() {
  * Submits a natural language command or question to the AI Agent.
  *
  * @param {string} message - The query message to send to the agent.
+ * @param {string} [language="en"] - BCP-47-style language code for the reply
+ *   (e.g. "es", "fr"); unsupported values fall back to English server-side.
  * @returns {Promise<Object>} A promise resolving to the agent response and tools used details.
  */
-export async function sendAgentQuery(message) {
+export async function sendAgentQuery(message, language = "en") {
   const res = await fetch(`${BASE_URL}/agent/query`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, language }),
   });
   if (!res.ok) {
     const err = await res.json();

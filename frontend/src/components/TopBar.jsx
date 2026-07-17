@@ -42,6 +42,19 @@ const statusColors = {
 };
 
 /**
+ * Football-facing display labels for each match-status value. The backend keeps
+ * sport-neutral status values; these labels present them in FIFA / football terms.
+ * @type {Object<string, string>}
+ */
+const statusLabels = {
+  "pre-match": "Pre-Match",
+  ongoing: "Kick-Off / In Play",
+  break: "Half-Time",
+  "post-match": "Full-Time",
+  emergency: "Emergency",
+};
+
+/**
  * TopBar component.
  * 
  * @component
@@ -82,11 +95,11 @@ export default function TopBar({ state, onOpenAI }) {
             // Menu trigger semantics for assistive tech.
             aria-haspopup="menu"
             aria-expanded={showStatusMenu}
-            aria-label={`Match status: ${state.matchStatus.replace("-", " ")}. Change status`}
+            aria-label={`Match status: ${statusLabels[state.matchStatus] || state.matchStatus}. Change status`}
             className={`status-badge border cursor-pointer ${statusColors[state.matchStatus]}`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" aria-hidden="true" />
-            {state.matchStatus.replace("-", " ").toUpperCase()}
+            {(statusLabels[state.matchStatus] || state.matchStatus.replace("-", " ")).toUpperCase()}
           </button>
           {showStatusMenu && (
             <div
@@ -99,9 +112,9 @@ export default function TopBar({ state, onOpenAI }) {
                   key={s}
                   role="menuitem"
                   onClick={() => handleStatusChange(s)}
-                  className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors capitalize"
+                  className="w-full text-left px-3 py-2 text-xs font-medium rounded-lg hover:bg-white/5 text-gray-300 hover:text-white transition-colors"
                 >
-                  {s.replace("-", " ")}
+                  {statusLabels[s] || s.replace("-", " ")}
                 </button>
               ))}
             </div>

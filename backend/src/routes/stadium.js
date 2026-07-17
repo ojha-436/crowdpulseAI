@@ -7,7 +7,8 @@
 
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
-import { authMiddleware } from "../auth.js";
+import { authMiddleware, requireClearance } from "../auth.js";
+import { ROLE_RANK } from "../config.js";
 import { stadiumState, addAlert, resetStadiumState } from "../state.js";
 import { saveStadiumState } from "../../db.js";
 
@@ -26,8 +27,9 @@ const router = express.Router();
  * Status Codes:
  *   - 200 OK: Reset complete.
  *   - 401 Unauthorized: Invalid or missing token.
+ *   - 403 Forbidden: Caller lacks Stadium Director clearance.
  */
-router.post("/api/stadium/reset", authMiddleware, (_req, res) => {
+router.post("/api/stadium/reset", authMiddleware, requireClearance(ROLE_RANK["Stadium Director"]), (_req, res) => {
   resetStadiumState();
   res.json({ success: true, message: "Simulation state reset successfully." });
 });
@@ -150,8 +152,9 @@ router.get("/api/stadium/alerts", (_req, res) => {
  *   - 200 OK: Status updated successfully.
  *   - 400 Bad Request: Invalid or unsupported match status value.
  *   - 401 Unauthorized: Invalid or missing token.
+ *   - 403 Forbidden: Caller lacks Operations Lead clearance.
  */
-router.post("/api/stadium/match-status", authMiddleware, (req, res) => {
+router.post("/api/stadium/match-status", authMiddleware, requireClearance(ROLE_RANK["Operations Lead"]), (req, res) => {
   const { status } = req.body;
   const validStatuses = ["pre-match", "ongoing", "break", "post-match", "emergency"];
   if (!validStatuses.includes(status)) {
@@ -188,9 +191,10 @@ router.post("/api/stadium/match-status", authMiddleware, (req, res) => {
  *   - 200 OK: Gate status updated successfully.
  *   - 400 Bad Request: Invalid status value.
  *   - 401 Unauthorized: Invalid or missing token.
+ *   - 403 Forbidden: Caller lacks Operations Lead clearance.
  *   - 404 Not Found: Gate ID does not exist.
  */
-router.post("/api/stadium/gate/:gateId", authMiddleware, (req, res) => {
+router.post("/api/stadium/gate/:gateId", authMiddleware, requireClearance(ROLE_RANK["Operations Lead"]), (req, res) => {
   const { gateId } = req.params;
   const { status } = req.body;
 

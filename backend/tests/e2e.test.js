@@ -346,8 +346,8 @@ describe("CrowdPulse E2E Test Suite", () => {
     test("T1_4: Get Stadium State Defaults", async () => {
       const res = await fetch(`${BASE_URL}/api/stadium/state`);
       const data = await res.json();
-      assert.strictEqual(data.name, "Narendra Modi Stadium, Ahmedabad");
-      assert.strictEqual(data.capacity, 132000);
+      assert.strictEqual(data.name, "MetLife Stadium — New York/New Jersey");
+      assert.strictEqual(data.capacity, 82500);
     });
 
     test("T1_5: Get Gates List length and values", async () => {
@@ -366,7 +366,7 @@ describe("CrowdPulse E2E Test Suite", () => {
       const zones = Object.values(data.zones);
       assert.strictEqual(zones.length, 8);
       const vipZone = zones.find((z) => z.id === "VIP Lounge");
-      assert.strictEqual(vipZone.capacity, 5000);
+      assert.strictEqual(vipZone.capacity, 4000);
     });
 
     test("T1_7: Get Incidents List Initially", async () => {
@@ -1137,6 +1137,25 @@ describe("CrowdPulse E2E Test Suite", () => {
       assert.strictEqual(verifyRes.status, 403);
       const verifyData = await verifyRes.json();
       assert.strictEqual(verifyData.error, "Access denied: Unauthorized role assignment");
+    });
+
+    test("T5_5: Privileged mutation rejects an under-cleared token with 403", async () => {
+      // A default login yields an Operations Analyst token (rank 2), below the
+      // Operations Lead clearance required to change match status.
+      const tokenRes = await fetch(`${BASE_URL}/api/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: "analyst_user" }),
+      });
+      const { token, role } = await tokenRes.json();
+      assert.strictEqual(role, "Operations Analyst");
+
+      const res = await fetch(`${BASE_URL}/api/stadium/match-status`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "ongoing" }),
+      });
+      assert.strictEqual(res.status, 403);
     });
   });
 

@@ -144,8 +144,12 @@ export function simulateTick() {
     stadiumState.humidity = 40 + Math.random() * 50;
   }
 
-  // Save the updated stadium state to db
-  saveStadiumState(stadiumState);
+  // Persist periodically rather than every tick. Routine simulation drift is
+  // batched to cut Firestore writes ~10x; user-initiated mutations elsewhere
+  // still persist immediately, so no operator action is ever lost.
+  if (tickCount % SIM.PERSIST_EVERY_TICKS === 0) {
+    saveStadiumState(stadiumState);
+  }
 }
 
 /**
