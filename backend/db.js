@@ -1,19 +1,33 @@
+/**
+ * @file db.js
+ * @description Firestore persistence layer for the shared stadium state. Wraps
+ * the Google Cloud Firestore client with a graceful in-memory fallback so the
+ * app keeps serving from the last known state when Firestore is unconfigured or
+ * unreachable. All reads and writes of persisted state go through this module.
+ * @module db
+ */
+
 import { Firestore } from "@google-cloud/firestore";
 
+import { logger } from "./src/logger.js";
+
 /**
- * The Firestore database instance. Will be null if Firestore is not initialized/disabled.
+ * The Firestore database instance, or null when persistence is disabled or the
+ * client failed to initialize.
  * @type {import('@google-cloud/firestore').Firestore|null}
  */
 let db = null;
 
 /**
- * Flag indicating whether Firestore is active and successfully initialized.
+ * Whether Firestore is active and successfully initialized. When false, every
+ * operation transparently falls back to the in-memory state.
  * @type {boolean}
  */
 let useFirestore = false;
 
 /**
- * Local in-memory backup state of the stadium to serve immediately in case of read failures or when Firestore is disabled.
+ * Last-known stadium state held in memory. Serves reads immediately and backs
+ * the fallback path when Firestore is disabled or a read/write fails.
  * @type {Object|null}
  */
 let localMemoryState = null;
@@ -27,13 +41,12 @@ const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || undefined;
 try {
   db = PROJECT_ID ? new Firestore({ projectId: PROJECT_ID }) : new Firestore();
   useFirestore = true;
-  console.log(`🔥 Firestore initialized${PROJECT_ID ? ` for project ${PROJECT_ID}` : " (project auto-detected)"}.`);
+  logger.info("firestore.initialized", { project: PROJECT_ID || "auto-detected" });
 } catch (error) {
-  console.warn(
-    "⚠️ Firestore client initialization failed. Falling back to In-Memory mode.",
-    error.message
-  );
+  // Initialization can fail when credentials are absent locally; degrade to the
+  // in-memory store rather than crashing the server on startup.
   useFirestore = false;
+  logger.warn("firestore.init_failed", { detail: error.message });
 }
 
 /**
@@ -43,10 +56,10 @@ try {
 const DOC_PATH = "stadiums/NarendraModiStadium";
 
 /**
- * Loads the stadium state from Firestore.
- * If Firestore is disabled or fails, falls back to the in-memory state.
- * If the document does not exist in Firestore, initializes it with defaultState.
- * @param {Object} defaultState - The initial state to use as default.
+ * Loads the stadium state from Firestore, falling back to the in-memory copy
+ * when Firestore is disabled or the read fails. Seeds the document with
+ * `defaultState` the first time it is found missing.
+ * @param {Object} defaultState - The baseline state used to seed the document.
  * @returns {Promise<Object>} The current stadium state.
  */
 export async function getStadiumState(defaultState) {
@@ -63,29 +76,29 @@ export async function getStadiumState(defaultState) {
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      console.log(`📝 Document ${DOC_PATH} does not exist. Initializing with default state...`);
+      logger.info("firestore.document_seeded", { docPath: DOC_PATH });
       await docRef.set(localMemoryState);
       return localMemoryState;
     }
 
     const dbState = doc.data();
-
-    // Ensure all critical root fields exist (compatibility layer)
+    // Merge the persisted document over the in-memory defaults so any root
+    // fields added after the document was first written still exist.
     const mergedState = { ...localMemoryState, ...dbState };
     localMemoryState = mergedState;
     return mergedState;
   } catch (error) {
-    console.warn(
-      "⚠️ Error reading stadium state from Firestore. Falling back to local memory store:",
-      error.message
-    );
+    logger.warn("firestore.read_failed", { detail: error.message });
     return localMemoryState;
   }
 }
 
 /**
- * Saves the stadium state to Firestore.
- * Updates localMemoryState first, then writes to Firestore asynchronously.
+ * Persists the stadium state to Firestore. Updates the in-memory copy first so
+ * a subsequent failed write still leaves the latest state readable. The write
+ * is a merge, so partial updates never clobber unrelated fields. Callers
+ * typically invoke this without awaiting, keeping API responses fast while
+ * persistence completes in the background.
  * @param {Object} state - The current stadium state to persist.
  * @returns {Promise<void>}
  */
@@ -98,11 +111,8 @@ export async function saveStadiumState(state) {
 
   try {
     const docRef = db.doc(DOC_PATH);
-    // Merge-write so partial updates never clobber unrelated fields. Callers
-    // typically invoke this without awaiting, keeping API responses fast while
-    // persistence completes in the background.
     await docRef.set(localMemoryState, { merge: true });
   } catch (error) {
-    console.warn("⚠️ Error writing stadium state to Firestore:", error.message);
+    logger.warn("firestore.write_failed", { detail: error.message });
   }
 }

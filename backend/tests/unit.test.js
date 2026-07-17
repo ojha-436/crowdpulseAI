@@ -80,12 +80,21 @@ describe("auth — helpers", () => {
     assert.strictEqual(isValidString(123, 10), false);
   });
 
-  test("isRoleAuthorized gates privileged roles", () => {
+  test("isRoleAuthorized gates privileged roles via the configured allow-list", () => {
+    // Allow-listed demo identities are elevated (username or email match).
     assert.strictEqual(isRoleAuthorized("Stadium Director", { username: "abhiraj" }), true);
-    assert.strictEqual(isRoleAuthorized("Stadium Director", { email: "a@gmail.com" }), true);
+    assert.strictEqual(
+      isRoleAuthorized("Stadium Director", { email: "iamabhiraj8825@gmail.com" }),
+      true
+    );
+    // An arbitrary Google account is NOT elevated — the blanket gmail/google
+    // wildcard was removed, so unlisted identities cannot self-assign admin.
+    assert.strictEqual(isRoleAuthorized("Stadium Director", { email: "a@gmail.com" }), false);
+    assert.strictEqual(isRoleAuthorized("Stadium Director", { username: "googler" }), false);
     assert.strictEqual(isRoleAuthorized("Stadium Director", { username: "bob", email: "b@x.io" }), false);
     assert.strictEqual(isRoleAuthorized("Security Chief", { username: "security_chief" }), true);
     assert.strictEqual(isRoleAuthorized("Security Chief", { username: "nope" }), false);
+    // Unprivileged roles need no allow-list entry.
     assert.strictEqual(isRoleAuthorized("Operations Analyst", {}), true);
   });
 

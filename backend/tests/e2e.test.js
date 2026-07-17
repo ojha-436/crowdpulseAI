@@ -1055,16 +1055,16 @@ describe("CrowdPulse E2E Test Suite", () => {
     });
 
     test("T4_4: Continuous Simulation Ticks Integrity over Time", async () => {
-      const res1 = await fetch(`${BASE_URL}/api/stadium/state`);
-      const data1 = await res1.json();
-      const initialHistoryLength = data1.crowdHistory.length;
+      const responseBefore = await fetch(`${BASE_URL}/api/stadium/state`);
+      const stateBefore = await responseBefore.json();
+      const initialHistoryLength = stateBefore.crowdHistory.length;
 
       await sleep(3500);
 
-      const res2 = await fetch(`${BASE_URL}/api/stadium/state`);
-      const data2 = await res2.json();
+      const responseAfter = await fetch(`${BASE_URL}/api/stadium/state`);
+      const stateAfter = await responseAfter.json();
 
-      assert.ok(data2.crowdHistory.length >= initialHistoryLength);
+      assert.ok(stateAfter.crowdHistory.length >= initialHistoryLength);
     });
 
     test("T4_5: Rate Limiter Extreme Pressure & Recovery", async () => {

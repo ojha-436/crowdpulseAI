@@ -6,7 +6,13 @@
  */
 
 import crypto from "crypto";
-import { JWT_SECRET, TOKEN_TTL_MS, ROLE_CLEARANCE, DEFAULT_ROLE } from "./config.js";
+import {
+  JWT_SECRET,
+  TOKEN_TTL_MS,
+  ROLE_CLEARANCE,
+  DEFAULT_ROLE,
+  PRIVILEGED_ROLE_ALLOWLIST,
+} from "./config.js";
 
 /**
  * Constant-time string comparison to guard signature checks against timing
@@ -102,29 +108,27 @@ export function isValidString(value, maxLength) {
 /**
  * Determines whether an identity is permitted to hold a privileged role.
  *
- * Elevated roles (Stadium Director, Security Chief) are restricted to a known
- * allow-list of demo credentials; all non-privileged roles are granted freely.
- * Email/username are defaulted to empty strings so a missing field never throws.
+ * Privileged roles are gated by the per-role allow-lists in
+ * {@link PRIVILEGED_ROLE_ALLOWLIST} (sourced from environment configuration): an
+ * identity is elevated only when its username or email is explicitly allow-listed.
+ * Any role without an allow-list entry is non-privileged and granted freely.
+ * Username/email are defaulted to empty strings so a missing field never throws,
+ * and both sides are compared case-insensitively.
  *
  * @param {string} role - The role being requested.
  * @param {{ username?: string, email?: string }} identity - Requesting user's identity.
  * @returns {boolean} True if the identity may hold the requested role.
  */
 export function isRoleAuthorized(role, { username = "", email = "" } = {}) {
-  if (role === "Stadium Director") {
-    return (
-      username === "abhiraj" ||
-      email === "iamabhiraj8825@gmail.com" ||
-      username.includes("google") ||
-      email.includes("google") ||
-      email.includes("@gmail.com")
-    );
-  }
-  if (role === "Security Chief") {
-    return username === "security_chief" || email === "security@crowdpulse.ai";
-  }
-  // Non-privileged roles require no special authorization.
-  return true;
+  const allowList = PRIVILEGED_ROLE_ALLOWLIST[role];
+  // Roles without an allow-list entry are unprivileged and require no check.
+  if (!allowList) return true;
+  const normalizedUsername = String(username).toLowerCase();
+  const normalizedEmail = String(email).toLowerCase();
+  return (
+    allowList.usernames.includes(normalizedUsername) ||
+    allowList.emails.includes(normalizedEmail)
+  );
 }
 
 /**

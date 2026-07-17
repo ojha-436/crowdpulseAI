@@ -119,6 +119,44 @@ export const DEFAULT_ROLE = "Operations Analyst";
 export const VALID_ROLES = Object.freeze(Object.keys(ROLE_CLEARANCE));
 
 /**
+ * Parses a comma-separated environment variable into a normalized, de-duplicated
+ * list of lowercased entries, falling back to the provided defaults when the
+ * variable is unset. Centralised so every identity allow-list is parsed the same
+ * way and deployments can override the defaults without a code change.
+ * @param {string|undefined} rawValue - Raw comma-separated environment value.
+ * @param {ReadonlyArray<string>} fallback - Default entries used when unset.
+ * @returns {ReadonlyArray<string>} Frozen, lowercased, non-empty, unique entries.
+ */
+function parseIdentityList(rawValue, fallback) {
+  const source = rawValue === undefined ? fallback : rawValue.split(",");
+  const normalized = source.map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+  return Object.freeze([...new Set(normalized)]);
+}
+
+/**
+ * Per-role allow-lists of the identities permitted to hold each privileged role.
+ * Sourced from optional comma-separated environment variables so real operator
+ * usernames/emails live in configuration rather than in the authorization logic
+ * itself. The defaults cover the built-in demo operators so the one-click logins
+ * work out of the box, and can be overridden — or cleared — per deployment.
+ *
+ * Elevation requires an explicit match here: there is deliberately no "any
+ * Google/Gmail account is an admin" wildcard, which would otherwise hand
+ * super-admin clearance to every visitor who signs in with Google.
+ * @type {Readonly<Record<string, { usernames: ReadonlyArray<string>, emails: ReadonlyArray<string> }>>}
+ */
+export const PRIVILEGED_ROLE_ALLOWLIST = Object.freeze({
+  "Stadium Director": Object.freeze({
+    usernames: parseIdentityList(process.env.PRIVILEGED_DIRECTOR_USERNAMES, ["abhiraj"]),
+    emails: parseIdentityList(process.env.PRIVILEGED_DIRECTOR_EMAILS, ["iamabhiraj8825@gmail.com"]),
+  }),
+  "Security Chief": Object.freeze({
+    usernames: parseIdentityList(process.env.PRIVILEGED_SECURITY_USERNAMES, ["security_chief"]),
+    emails: parseIdentityList(process.env.PRIVILEGED_SECURITY_EMAILS, ["security@crowdpulse.ai"]),
+  }),
+});
+
+/**
  * Tuning constants for the real-time crowd simulation. Grouped here so the
  * behaviour of the simulation is discoverable in one place rather than as
  * magic numbers scattered through simulateTick().
