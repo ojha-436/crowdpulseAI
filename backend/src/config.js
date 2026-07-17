@@ -7,7 +7,11 @@
  * @module config
  */
 
+import crypto from "crypto";
+
 import dotenv from "dotenv";
+
+import { logger } from "./logger.js";
 
 dotenv.config();
 
@@ -17,12 +21,17 @@ dotenv.config();
  */
 export const PORT = process.env.PORT || 8080;
 
-// Secret used to sign JWTs. A hardcoded fallback keeps local/demo runs working
-// out of the box, but production MUST supply its own JWT_SECRET — the warning
-// below makes an insecure default explicit rather than silently accepted.
-export const JWT_SECRET = process.env.JWT_SECRET || "crowdpulse-super-secret-key-123456";
+/**
+ * Secret used to sign/verify JWTs. Never hardcoded: it is read from the
+ * JWT_SECRET environment variable in every real deployment. If it is absent
+ * (local/dev), a random per-process secret is generated so tokens are still
+ * valid within a single run — a warning makes the missing production secret
+ * explicit rather than silently defaulting to a well-known value.
+ * @type {string}
+ */
+export const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString("hex");
 if (!process.env.JWT_SECRET) {
-  console.warn("⚠️  JWT_SECRET is not set — using an insecure default. Set JWT_SECRET in production.");
+  logger.warn("JWT_SECRET not set — generated an ephemeral per-process secret; set JWT_SECRET in production.");
 }
 
 /**

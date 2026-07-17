@@ -13,6 +13,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { PORT, GENERAL_RATE_LIMIT, AUTH_RATE_LIMIT } from "./src/config.js";
+import { logger } from "./src/logger.js";
 import { applySecurity } from "./src/middleware/security.js";
 import { initStateFromDb } from "./src/state.js";
 import { startSimulation } from "./src/simulation.js";
@@ -87,6 +88,8 @@ await initStateFromDb();
 startSimulation();
 
 app.listen(PORT, () => {
-  console.log(`CrowdPulse AI server running on port ${PORT}`);
-  console.log(`Gemini AI: ${ai ? "Connected" : "Not configured (set GEMINI_API_KEY)"}`);
+  logger.info("server.started", {
+    port: PORT,
+    gemini: ai ? "connected" : "not-configured",
+  });
 });

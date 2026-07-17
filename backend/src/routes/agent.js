@@ -8,6 +8,7 @@
 import express from "express";
 import { GEMINI_MODEL, INPUT_LIMITS } from "../config.js";
 import { authMiddleware, isValidString } from "../auth.js";
+import { logger } from "../logger.js";
 import { stadiumState } from "../state.js";
 import {
   ai,
@@ -135,7 +136,9 @@ router.post("/api/agent/query", authMiddleware, async (req, res) => {
       timestamp: Date.now(),
     });
   } catch (error) {
-    console.error("Gemini API error:", error);
+    // The Gemini SDK surfaces many error shapes (network, quota, model); we
+    // treat them uniformly as "AI unavailable" and degrade to the fallback.
+    logger.error("gemini.query_failed", { detail: error.message });
     res.status(500).json({
       error: "AI processing error",
       details: error.message,

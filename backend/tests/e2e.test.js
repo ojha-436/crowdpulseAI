@@ -17,7 +17,7 @@ const BASE_URL = `http://localhost:${PORT}`;
  * security tests below.
  * @type {string}
  */
-const TEST_JWT_SECRET = "crowdpulse-super-secret-key-123456";
+const TEST_JWT_SECRET = "e2e-deterministic-test-secret";
 
 /**
  * Signs a JWT the same way the server does, allowing tests to craft tokens with

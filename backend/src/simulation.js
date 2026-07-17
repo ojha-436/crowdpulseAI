@@ -23,7 +23,6 @@ let tickCount = 0;
  * Executes periodically to simulate real-time stadium dynamics.
  */
 export function simulateTick() {
-  // Increment global simulation ticks count
   tickCount++;
   const { matchStatus, gates, zones } = stadiumState;
 

@@ -60,7 +60,10 @@ export function verifyToken(token) {
     // Reject expired tokens (exp is epoch-millis stamped by signToken).
     if (payload.exp && Date.now() > payload.exp) return null;
     return payload;
-  } catch (e) {
+  } catch {
+    // Any decode/parse failure (malformed base64, non-JSON body, etc.) means
+    // the token is simply invalid — there is no recoverable sub-case to handle
+    // differently, so all such errors collapse to a null (unauthenticated) result.
     return null;
   }
 }

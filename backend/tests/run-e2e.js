@@ -67,6 +67,8 @@ async function main() {
         ...process.env,
         PORT: "8085",
         GEMINI_API_KEY: "", // ensure fallback is tested
+        // Fixed secret so the security tests can forge validly-signed tokens.
+        JWT_SECRET: "e2e-deterministic-test-secret",
       },
     });
 
